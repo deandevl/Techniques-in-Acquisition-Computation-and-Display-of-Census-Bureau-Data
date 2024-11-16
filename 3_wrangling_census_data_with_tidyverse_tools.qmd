@@ -1,0 +1,685 @@
+# 3 Wrangling Census Data with tidyverse tools
+
+::: task
+Load the Required R Packages from CRAN:
+:::
+
+```{r}
+#| warning: false
+#| message: false
+
+library(usmap)
+library(data.table)
+library(kableExtra)
+library(stringr)
+library(purrr)
+library(magrittr)
+library(devtools)
+```
+
+::: task
+Load the package 'deandevl/RcensusPkg'.
+:::
+
+```{r}
+#| warning: false
+#| message: false
+
+devtools::install_github('deandevl/RcensusPkg')
+```
+
+## 3.2 Exploring Census data with tidyverse tools
+
+From the `RcensusPkg::` package we will be utilizing the following functions to obtain Census Bureau data:
+
+-   `RcensusPkg::get_vintage_data()` Get Census Bureau data for a specific data set, variables, and region in the form of a data.table.
+
+-   `RcensusPkg::get_variable_names()` Get the variable names of the Census Bureau and their descriptions in the form of a data.table.
+
+-   `RcensusPkg::get_multi_vintage_data()` Get Census Bureau data for a specific data set, variables, and region in the form of a data.table for multiple vintages.
+
+The data wrangling such as sorting, ordering, filtering, mutating, joining, grouping, renaming, variable selection will be accomplished using the many capabilities of the [data.table](https://cran.r-project.org/web/packages/data.table/index.html) package.
+
+### 3.2.1 Sorting and filtering data
+
+::: task
+Request the median age from 2016-2020 5-year ACS Survey for all counties in the United States.
+:::
+
+Call `RcensusPkg::get_vintage_data()`:
+
+```{r}
+county_med_age_dt <- RcensusPkg::get_vintage_data(
+  dataset = "acs/acs5",
+  vintage = 2020,
+  vars = c("B01002_001E", "B01002_001M"),
+  region = "county"
+) %>%
+.[, `:=`(state = NULL, county = NULL)] %>%
+data.table::setnames(., old = c("B01002_001E", "B01002_001M"), new = c("estimate", "moe")) %>%
+.[, variable := "B01002_001"] %>%
+.[, .(GEOID, NAME, variable, estimate, moe)]
+```
+
+```{r}
+#| echo: false
+#| tbl-cap: "Table 3.1: Median age for US counties"
+
+kableExtra::kbl(county_med_age_dt[1:6,])
+```
+
+::: task
+Find the youngest to oldest counties in the US.
+:::
+
+Order the "estimate" column of `county_med_age_dt` via ascending direction (the default):
+
+```{r}
+county_med_age_young_to_old_dt <- county_med_age_dt[order(estimate)]
+```
+
+```{r}
+#| echo: false
+#| tbl-cap: "Table 3.2: The youngest counties in the US by median age"
+
+kableExtra::kbl(county_med_age_young_to_old_dt[1:6,])
+```
+
+::: task
+Find the oldest to youngest counties in the US.
+:::
+
+```{r}
+county_med_age_old_to_young_dt <- county_med_age_dt[order(-estimate)]
+```
+
+```{r}
+#| echo: false
+#| tbl-cap: "Table 3.3: The oldest counties in the US by median age"
+
+kableExtra::kbl(county_med_age_old_to_young_dt[1:6,])
+```
+
+::: task
+Filter the counties in the US with a median age \>= 50.
+:::
+
+Use a simple logical expression to filter the data frame `county_med_age_dt`:
+
+```{r}
+county_med_age_gte_50_dt <- county_med_age_dt[estimate >= 50] %>%
+.[order(GEOID),]  
+```
+
+```{r}
+#| echo: false
+#| tbl-cap: "Table 3.4: Counties with a median age of 50 or above"
+
+kableExtra::kbl(county_med_age_gte_50_dt[1:6,])
+```
+
+::: task
+Separate the "NAME" column into columns of state and county names.
+:::
+
+Use `data.table::tstrsplit()` to split the "NAME" column and then remove the "NAME" column:
+
+```{r}
+county_med_age_dt <- county_med_age_dt[, c("county","state") := tstrsplit(NAME,",")] %>%
+  .[, NAME := NULL] %>%
+.[, .(GEOID, county, state, variable, estimate, moe)]  
+```
+
+```{r}
+#| echo: false
+#| tbl-cap: "Table 3.5: Separate columns for county and state"
+
+kableExtra::kbl(county_med_age_dt[1:6,])
+```
+
+### 3.2.2 Using summary variables and calculating new columns
+
+::: task
+Compare the populations of different races in each county in the state of Arizona by normalizing a set of variables.
+:::
+
+Get the total population by race in each county:
+
+```{r}
+az_fips <- usmap::fips("AZ")  # Get the fips number for Arizona
+
+ar_pop_race_dt <- RcensusPkg::get_vintage_data(
+  dataset = "acs/acs5",
+  vintage = 2020,
+  vars = c("B03002_001E", "B03002_001M", "B03002_003E", "B03002_004E", "B03002_005E", "B03002_006E", "B03002_007E", "B03002_012E", "B03002_003M", "B03002_004M", "B03002_005M", "B03002_006M", "B03002_007M", "B03002_012M"),
+  region = "county:*",
+  regionin = paste0("state:", az_fips)
+) %>%
+.[, `:=`(state = NULL, county = NULL)]
+```
+
+Reshape the estimates and summary to the long form:
+
+```{r}
+estimate_long_dt <- RcensusPkg::wide_to_long(
+  dt = ar_pop_race_dt,
+  measure_v = c("B03002_003E","B03002_004E","B03002_005E","B03002_006E","B03002_007E","B03002_012E")
+)
+moe_long_dt <- RcensusPkg::wide_to_long(
+  dt = ar_pop_race_dt,
+  measure_v = c("B03002_003M", "B03002_004M", "B03002_005M", "B03002_006M", "B03002_007M", "B03002_012M")
+)
+summary_est_dt <- RcensusPkg::wide_to_long(
+  dt = ar_pop_race_dt,
+  measure_v = "B03002_001E"
+)
+summary_moe_dt <- RcensusPkg::wide_to_long(
+  dt = ar_pop_race_dt,
+  measure_v = "B03002_001M"
+)
+```
+
+Perform some simple wrangling:
+
+```{r}
+estimate_long_dt <- estimate_long_dt %>% 
+  .[, estimate := as.numeric(estimate)] %>% 
+  .[, variable := fcase(
+     variable == "B03002_003E","White",
+     variable == "B03002_004E","Black",
+     variable == "B03002_005E","Native",
+     variable == "B03002_006E","Asian",
+     variable == "B03002_007E","HIPI",
+     variable == "B03002_012E","Hispanic")
+  ] %>% 
+  .[, moe := as.numeric(moe_long_dt$estimate)] %>% 
+  .[, moe := ifelse(moe == -555555555,NA,moe)]
+```
+
+More wrangling on the summary variables:
+
+```{r}
+summary_est_dt <- summary_est_dt %>% 
+  .[, summary_est := as.numeric(estimate)] %>% 
+  .[, .(GEOID, summary_est)]
+summary_moe_dt <- summary_moe_dt %>% 
+  .[, summary_moe := as.numeric(estimate)] %>% 
+  .[, summary_moe := ifelse(estimate == -555555555,NA,estimate)] %>% 
+  .[, .(GEOID, summary_moe)]
+```
+
+Wrap it all up with some joins:
+
+```{r}
+data.table::setkeyv(estimate_long_dt, cols = "GEOID")
+data.table::setkeyv(summary_est_dt, cols = "GEOID")
+data.table::setkeyv(summary_moe_dt, cols = "GEOID")
+estimate_long_dt <- estimate_long_dt[summary_est_dt]
+estimate_long_dt <- estimate_long_dt[summary_moe_dt]
+```
+
+```{r}
+#| echo: false
+#| tbl-cap: "Table 3.6: Race and ethnicity in Arizonia"
+
+kableExtra::kbl(estimate_long_dt[1:6,])
+```
+
+Finish by adding a column representing the percentage of each Census tract's population that cooresponds to each racial/ethnic group in 2016-2020.
+
+```{r}
+estimate_percent_long_dt <- estimate_long_dt %>% 
+  .[, percent := 100 * (estimate/summary_est)] %>% 
+  .[, .(NAME, variable, percent)]
+```
+
+```{r}
+#| echo: false
+#| tbl-cap: "Table 3.7: Race and ethnicity in Arizonia as percentages"
+
+kableExtra::kbl(estimate_percent_long_dt[1:6,])
+```
+
+## 3.3 Group-wise Census data analysis
+
+### 3.3.1 Making group-wise comparisons
+
+::: task
+Group `estimate_percent_long_dt` by the "NAME" column (county) and select the largest race percentage from each sub-group.
+:::
+
+Define the grouping for `estimate_percent_long_dt` and filter the "percent" column as the maximum race/ethnic percent for each sub-group:
+
+[The ".SD" stands for **S**ubset of **D**ata. It by itself is a `data.table` that holds the data for the current sub-group defined using `by`.]{.column-margin}
+
+```{r}
+estimate_percent_grouped_dt <- estimate_percent_long_dt[,
+  .SD[percent == max(percent)], 
+  by = NAME
+]
+```
+
+```{r}
+#| echo: false
+#| tbl-cap: "Table 3.8: Largest group by county in Arizona"
+
+kableExtra::kbl(estimate_percent_grouped_dt)
+```
+
+::: task
+Group `estimate_percent_long_dt` by race from the "variable" column and compute summary statistics for each of the sub-groups.
+:::
+
+Define the grouping on racial and ethnic designations (the "variable" column of `estimate_percent_long_dt`) and show the median percentage for each group ordered from highest to lowest:
+
+```{r}
+estimate_percent_median_dt <- estimate_percent_long_dt[, 
+  .(median_pct = stats::median(percent)), 
+  by = variable] %>% # compute the median percent for each group
+  .[order(-median_pct)] # order "median_pct" column descending
+```
+
+```{r}
+#| echo: false
+#| tbl-cap: "Table 3.9: Median percentage by group in Arizona"
+
+kableExtra::kbl(estimate_percent_median_dt)
+```
+
+### 3.3.2 Tabulating new groups
+
+::: task
+Re-combine the bands of household income to broader bands for Minnesota counties from the 2012-2016 "acs/acs5" dataset.
+:::
+
+Get the household income by county in Minnesota:
+
+```{r}
+mn_fips <- usmap::fips("MN")
+mn_hh_income_dt <- RcensusPkg::get_vintage_data(
+  dataset = "acs/acs5",
+  vintage = 2016,
+  group = "B19001",
+  region = "county:*",
+  regionin = paste0("state:", mn_fips),
+  wide_to_long = T
+) %>%
+  .[, `:=` (estimate = as.numeric(estimate), moe = as.numeric(moe))] %>%
+  .[, .(GEOID, NAME, variable, estimate, moe)] %>%
+  .[order(GEOID, variable)]
+```
+
+```{r}
+#| echo: false
+#| tbl-cap: "Table 3.10: Table/Group B19001 for counties in Minnesota"
+
+kableExtra::kbl(mn_hh_income_dt[1:6,])
+```
+
+::: task
+Consolidate the 16 bands of income ("B19001_2" to "B19001_017") into 3 bands.
+:::
+
+Use data.table's `fcase()` function. Disregard the "B19001_001" which is the total number of households for each county.
+
+```{r}
+mm_hh_income_recode_dt <- mn_hh_income_dt %>%
+  .[variable != "B19001_001"] %>%
+  .[, variable := as.character(variable)] %>% # "variable" column is factor; change it to character
+  .[, incgroup := fcase(                      # re-band "variable" column
+    variable < "B19001_008", "below35k",
+    variable >= "B19001_008" &  variable < "B19001_013", "bw35kand75k",
+    variable >= "B19001_013", "above75k")] 
+```
+
+```{r}
+#| echo: false
+#| tbl-cap: "Table 3.11: Recoded household income categories"
+
+kableExtra::kbl(mm_hh_income_recode_dt[1:12,])
+```
+
+::: task
+Group `mm_hh_income_recode_dt` by "incgroup" and compute the sum of "estimate" for each sub-group.
+:::
+
+Use `data.table`'s `by` directive:
+
+```{r}
+mm_hh_income_recode_grouped_dt <- mm_hh_income_recode_dt[,
+  .(estimate = sum(estimate)), 
+  by = c("GEOID", "incgroup")
+] 
+```
+
+```{r}
+#| echo: false
+#| tbl-cap: "Table 3.12: Grouped sums by income bands"
+
+kableExtra::kbl(mm_hh_income_recode_grouped_dt[1:6,])
+```
+
+## 3.4 Comparing ACS estimates over time
+
+### 3.4.1 Time-series analysis: some cautions
+
+Looking at geography changes over time.
+
+::: task
+Look at age data (group = "B01001") on Oglala Lakota County, South Dakota.
+:::
+
+Call `RcensusPkg::get_vintage_data()`:
+
+```{r}
+sd_oglala_fips <- usmap::fips(state = "SD", county = "Oglala Lakota")
+oglala_lakota_age_2020_dt <- RcensusPkg::get_vintage_data(
+  dataset = "acs/acs5",
+  vintage = 2020,
+  group = "B01001",
+  region = paste0("county:", substr(sd_oglala_fips,3,5)),
+  regionin = paste0("state:", substr(sd_oglala_fips,1,2)),
+  wide_to_long = T
+) %>%
+.[, `:=`(estimate = as.numeric(estimate), moe = as.numeric(moe))] %>%
+.[, moe := ifelse(moe == -555555555, NA, moe)] %>%
+.[, .(GEOID, NAME, variable, estimate, moe)]  
+```
+
+[To look at how the age numbers have changed, we could compare the above table with the data from a previous survey such as the 2006-2010 ACS 5-year survey. But a request for the data would result in an error because Oglala Lakota County had a different name in 2010 (i.e. "Shannon County" which has a fips code of "46113").]{.column-margin}
+
+```{r}
+#| echo: false
+#| tbl-cap: "Table 3.13: Age table/group for Oglala Lakota County"
+
+kableExtra::kbl(oglala_lakota_age_2020_dt[1:6,])
+```
+
+::: task
+Get the 2010 age data for the South Dakota county named "Shannon County".
+:::
+
+Call `RcensusPkg::get_vintage_data()` using the "46113" fips code):
+
+```{r}
+sd_oglala_2010_fips <- "46113"
+oglala_lakota_age_2010_dt <- RcensusPkg::get_vintage_data(
+  dataset = "acs/acs5",
+  vintage = 2010,
+  group = "B01001",
+  region = paste0("county:", substr(sd_oglala_2010_fips,3,5)),
+  regionin = paste0("state:", substr(sd_oglala_2010_fips,1,2)),
+  wide_to_long = T
+) %>%
+.[, `:=`(estimate = as.numeric(estimate), moe = as.numeric(moe))] %>%
+.[, moe := ifelse(moe == -555555555, NA, moe)] %>%
+.[, .(GEOID, NAME, variable, estimate, moe)]  
+```
+
+```{r}
+#| echo: false
+#| tbl-cap: "Table 3.14: Age table/group for Oglala Lakota County, SD (then named Shannon County)"
+
+kableExtra::kbl(oglala_lakota_age_2010_dt[1:6,])
+```
+
+In addition to changes in geographic identifiers, variable IDs can change over time as well.
+
+::: task
+Demonstrate changes in the variable acronym name "DP02_0068" from the "acs/acs1/profile" dataset for the years 2018 and 2019.
+:::
+
+The acronym "DP02_0068" is the percentage of residents age 25 and up with a 4-year college degree.
+
+Use `RcensusPkg::get_variable_names()` with its string filter for filtering the resultant data.table's "name" column for 2019:
+
+```{r}
+DP02_0068_2019_dt <- RcensusPkg::get_variable_names(
+  dataset = "acs/acs1/profile",
+  vintage = 2019,
+  filter_name_str = "dp02_0068"
+)
+```
+
+```{r}
+#| echo: false
+#| tbl-cap: "Table 3.15: ACS Data Profile data in 2019"
+
+kableExtra::kbl(DP02_0068_2019_dt)
+```
+
+Use `RcensusPkg::get_variable_names()` with its string filter for filtering the resultant data.table's "name" column for 2018:
+
+```{r}
+DP02_0068_2018_dt <- RcensusPkg::get_variable_names(
+  dataset = "acs/acs1/profile",
+  vintage = 2018,
+  filter_name_str = "dp02_0068"
+)
+```
+
+[We see from the table that the variable acronym "DP02_0068" has completely changed in its definition from vintage 2018 to vintage 2019.]{.column-margin}
+
+```{r}
+#| echo: false
+#| tbl-cap: "Table 3.16: ACS Data Profile data in 2018"
+
+kableExtra::kbl(DP02_0068_2018_dt)
+```
+
+### 3.4.2 Preparing time-series ACS estimates
+
+The variables in the Comparison Profile dataset is an alternative for time comparisons. Groups of variables are available in both 1-year (acs/acs1/cprofile) and 5-year (acs/acs5/cprofile) datasets.
+
+::: task
+Get inflation-adjusted median household incomes of Alaska counties and county-equivalents for 2015/2020.
+:::
+
+Find the variable acronym names of interest from the acs/acs1/cprofile dataset:
+
+```{r}
+hh_income_vars_dt <- RcensusPkg::get_variable_names(
+  dataset = "acs/acs5/cprofile",
+  vintage = 2020,
+  filter_label_str = "median household income"
+)
+```
+
+```{r}
+#| echo: false
+#| tbl-cap: "Table 17a: Variables available that addresses median household income"
+
+kableExtra::kbl(hh_income_vars_dt)
+```
+
+Get the 5-year 2015/2020 median household incomes for Alaska counties:
+
+```{r}
+alaska_fips <- usmap::fips(state = "alaska")
+alaska_hh_incomes_dt <- RcensusPkg::get_vintage_data(
+  dataset = "acs/acs5/cprofile",
+  vintage = 2020,
+  vars = c("CP03_2015_062E", "CP03_2020_062E"),
+  region = "county:*",
+  regionin = paste0("state:", alaska_fips)
+) %>%
+data.table::setnames(., old = c("CP03_2015_062E", "CP03_2020_062E"), new = c("income15","income20")) %>% 
+.[, .(GEOID, NAME, income15, income20)]
+```
+
+Reshape `alaska_hh_incomes_dt` from its default "wide" shape to "long":
+
+```{r}
+alaska_hh_incomes_long_dt <- RcensusPkg::wide_to_long(
+  dt = alaska_hh_incomes_dt
+)%>%
+.[order(GEOID)]
+```
+
+```{r}
+#| echo: false
+#| tbl-cap: "Table 3.17: Comparative income data from the ACS CP tables"
+
+kableExtra::kbl(alaska_hh_incomes_long_dt[1:6,])
+```
+
+#### 3.4.2.1 Iterating over ACS years with tidyverse tools
+
+::: task
+Use [purrr](https://purrr.tidyverse.org/) to iterate through the years 2010 to 2019 to request data on college degree holders (group/table "B15002") for counties in Colorado from the "acs/acs1" dataset.
+:::
+
+Review the "B15002" variables of interest:
+
+```{r}
+vars <- c(
+  "B15002_001E", "B15002_001M", # the summary variables
+  "B15002_015E", "B15002_015M",
+  "B15002_016E", "B15002_016M",
+  "B15002_017E", "B15002_017M",
+  "B15002_018E", "B15002_018M",
+  "B15002_032E", "B15002_032M",
+  "B15002_033E", "B15002_033M",
+  "B15002_034E", "B15002_034M",
+  "B15002_035E", "B15002_035M"
+)
+vars_B15002_dt <- RcensusPkg::get_variable_names(
+  dataset = "acs/acs1",
+  vintage = 2019,
+  vars = vars
+)
+```
+
+```{r}
+#| echo: false
+#| tbl-cap: "Table 18a: 'B15002' variables of interest"
+
+kableExtra::kbl(vars_B15002_dt)
+```
+
+Call `purrr::map_dfr()` to retrieve the "B15002\_\*" data for the years of interest as a row combined data.table:
+
+```{r}
+colorado_fips <- usmap::fips(state = "colorado")
+vintages <- 2010:2019
+names(vintages) <- vintages
+
+college_by_year_dt <- purrr::map_dfr(vintages, ~{
+  RcensusPkg::get_vintage_data(
+    dataset = "acs/acs1",
+    vintage = .x,
+    vars = vars,
+    region = "county:*",
+    regionin = paste0("state:",colorado_fips)
+  )
+}, .id = "year") %>%
+.[, `:=`(state = NULL, county = NULL)]
+```
+
+As an alternative call `RcensusPkg::get_multi_vintage_data()` to retrieve across multiple years:
+
+[Note that both `college_by_year_dt` and `college_by_year_alt_dt` are identical.]{.column-margin}
+
+```{r}
+college_by_year_alt_dt <- RcensusPkg::get_multi_vintage_data(
+  dataset = "acs/acs1",
+  vintage_v = vintages,
+  vars = vars,
+  region = "county:*",
+  regionin = paste0("state:", colorado_fips)
+) %>%
+  .[,`:=`(state = NULL, county = NULL)] %>%
+data.table::setnames(., old="vintage", new = "year")
+```
+
+Reshape the default "wide" format of `college_by_year_dt` to a "long" format:
+
+```{r}
+college_by_year_estimate_long_dt <- RcensusPkg::wide_to_long(
+  dt = college_by_year_dt,
+  id_v = c("year","GEOID","NAME"),
+  measure_v = c(
+    "B15002_015E","B15002_016E",
+    "B15002_017E","B15002_018E",
+    "B15002_032E","B15002_033E",
+    "B15002_034E","B15002_035E"
+  )
+) %>% 
+  .[, estimate := as.numeric(estimate)]
+
+college_by_year_moe_long_dt <- RcensusPkg::wide_to_long(
+  dt = college_by_year_dt,
+  id_v = c("year","GEOID","NAME"),
+  measure_v = c(
+    "B15002_015M","B15002_016M",
+    "B15002_017M","B15002_018M",
+    "B15002_032M","B15002_033M",
+    "B15002_034M","B15002_035M"
+  ),
+  value_name = "moe"
+) %>% 
+  .[, moe := as.numeric(moe)] %>% 
+  .[, .(GEOID, moe)]
+ 
+college_by_summary_est_dt <- RcensusPkg::wide_to_long(
+  dt = college_by_year_dt,
+  id_v = c("year","GEOID","NAME"),
+  measure_v = "B15002_001E",
+  value_name = "summary_est"
+) %>% 
+  .[, summary_est := as.numeric(summary_est)] %>% 
+  .[, .(GEOID, year, summary_est)]
+
+college_by_summary_moe_dt <- RcensusPkg::wide_to_long(
+  dt = college_by_year_dt,
+  id_v = c("year","GEOID","NAME"),
+  measure_v = "B15002_001M",
+  value_name = "summary_moe"
+) %>% 
+  .[, summary_moe := as.numeric(summary_moe)] %>% 
+  .[, .(GEOID, year, summary_moe)]
+
+ 
+college_by_year_estimate_long_dt <- college_by_year_estimate_long_dt %>% 
+  .[, moe := college_by_year_moe_long_dt$moe] 
+
+ 
+data.table::setkeyv(college_by_year_estimate_long_dt, cols = c("GEOID","year"))
+data.table::setkeyv(college_by_summary_est_dt, cols = c("GEOID","year"))
+data.table::setkeyv(college_by_summary_moe_dt, cols = c("GEOID","year"))
+college_by_year_estimate_long_dt <- college_by_year_estimate_long_dt[college_by_summary_est_dt]
+college_by_year_estimate_long_dt <- college_by_year_estimate_long_dt[college_by_summary_moe_dt] %>% 
+  data.table::setorderv(cols = c("NAME", "variable"))
+```
+
+```{r}
+#| echo: false
+#| tbl-cap: "Table 3.18: Educational attainment over time for Colorado counties"
+
+kableExtra::kbl(college_by_year_estimate_long_dt[1:6,])
+```
+
+::: task
+From `college_by_year_estimate_long_gt` group by "NAME" and "year" and compute the percentage of the population age 25 and up with a 4-year college degree.
+:::
+
+```{r}
+percent_college_by_year_dt <- college_by_year_estimate_long_dt %>% 
+  .[, .(numerator=sum(.SD$estimate),denominator=.SD$summary_est[[1]]), by = .(NAME,year)] %>% 
+  .[, pct_college := 100 * (numerator / denominator)] %>% 
+  data.table::dcast(
+    formula = NAME ~ year,
+    value.var = "pct_college"
+  )
+```
+
+```{r}
+#| echo: false
+#| tbl-cap: "Table 3.19: Percent college by year in Colorado counties"
+
+kableExtra::kbl(percent_college_by_year_dt)
+```
+
+## 3.5 Handling margins of error in the American Community Survey
+
+This section skipped.

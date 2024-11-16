@@ -1,0 +1,18 @@
+---
+format: html
+editor: visual
+---
+
+# Introduction
+
+THe book [Analyzing US Census Data: Methods, Maps, and Models in R](https://walker-data.com/census-r/index.html) by Kyle Walker presents an excellent introduction to the US Census Bureau's API. The topics from 7 chapters presented in the book are followed here to offer alternative techniques in the acquisition, manipulation, and visualization of the Census data. The focus will be on four packages:
+
+[RcensusPkg](https://github.com/deandevl/RcensusPkg) is applied to acquire both Census Bureau data and acess to the TIGER line shapefile geometries.
+
+[RspatialPkg](https://github.com/deandevl/RspatialPkg) combines Census Bureau spatial geographic features with survey data to create ggplot2 based choropleth maps.
+
+[RplotterPkg](https://github.com/deandevl/RplotterPkg) provide an easy interface to both static and interactive ggplot2 plotting such as histograms, bar charts, and scatterplots along with layout of multiple plots.
+
+All three of the above packages can be installed via github.
+
+Also from CRAN, [data.table](https://cran.r-project.org/web/packages/data.table/index.html) is used extensively in data manipulation.

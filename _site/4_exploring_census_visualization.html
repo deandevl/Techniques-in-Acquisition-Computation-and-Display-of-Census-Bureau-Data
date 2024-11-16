@@ -1,0 +1,2819 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.4.551">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="dcterms.date" content="2024-11-15">
+
+<title>exploring_census_visualization</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./3_wrangling_census_data_with_tidyverse_tools.html" rel="prev">
+<script src="site_libs/quarto-html/quarto.js"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark.css" rel="prefetch" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark.min.css" rel="prefetch" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script src="site_libs/kePrint-0.0.1/kePrint.js"></script>
+
+<link href="site_libs/lightable-0.0.1/lightable.css" rel="stylesheet">
+
+
+
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body class="nav-sidebar floating slimcontent">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./4_exploring_census_visualization.html">4 Exploring US Census data with visualization</a></li></ol></nav>
+        <a class="flex-grow-1" role="button" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+        <div class="sidebar-tools-collapse">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+  <a href="" class="quarto-reader-toggle quarto-navigation-tool px-1" onclick="window.quartoToggleReader(); return false;" title="Toggle reader mode">
+  <div class="quarto-reader-toggle-btn">
+  <i class="bi"></i>
+  </div>
+</a>
+</div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Introduction</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./2_intro_to_tidyverse.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">2 An introduction to tidyverse</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./3_wrangling_census_data_with_tidyverse_tools.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">3 Wrangling Census Data with tidyverse tools</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./4_exploring_census_visualization.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">4 Exploring US Census data with visualization</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#exploring-us-census-data-with-visualization" id="toc-exploring-us-census-data-with-visualization" class="nav-link active" data-scroll-target="#exploring-us-census-data-with-visualization">4 Exploring US Census data with visualization</a>
+  <ul class="collapse">
+  <li><a href="#basic-census-visualization-with-ggplot2" id="toc-basic-census-visualization-with-ggplot2" class="nav-link" data-scroll-target="#basic-census-visualization-with-ggplot2">4.1 Basic Census visualization with ggplot2</a>
+  <ul class="collapse">
+  <li><a href="#getting-started-with-ggplot2" id="toc-getting-started-with-ggplot2" class="nav-link" data-scroll-target="#getting-started-with-ggplot2">Getting started with ggplot2</a></li>
+  <li><a href="#visualizing-multivariate-relationships-with-scatter-plots" id="toc-visualizing-multivariate-relationships-with-scatter-plots" class="nav-link" data-scroll-target="#visualizing-multivariate-relationships-with-scatter-plots">4.1.2 Visualizing multivariate relationships with scatter plots</a></li>
+  </ul></li>
+  <li><a href="#customizing-ggplot2-visualizations" id="toc-customizing-ggplot2-visualizations" class="nav-link" data-scroll-target="#customizing-ggplot2-visualizations">4.2 Customizing ggplot2 visualizations</a>
+  <ul class="collapse">
+  <li><a href="#improving-plot-legibility" id="toc-improving-plot-legibility" class="nav-link" data-scroll-target="#improving-plot-legibility">4.2.1 Improving plot legibility</a></li>
+  <li><a href="#custom-styling-of-ggplot2-charts" id="toc-custom-styling-of-ggplot2-charts" class="nav-link" data-scroll-target="#custom-styling-of-ggplot2-charts">4.2.2 Custom styling of ggplot2 charts</a></li>
+  <li><a href="#exporting-data-visualizations-from-r" id="toc-exporting-data-visualizations-from-r" class="nav-link" data-scroll-target="#exporting-data-visualizations-from-r">4.2.3 Exporting data visualizations from R</a></li>
+  </ul></li>
+  <li><a href="#visualizing-margins-of-error" id="toc-visualizing-margins-of-error" class="nav-link" data-scroll-target="#visualizing-margins-of-error">4.3 Visualizing margins of error</a>
+  <ul class="collapse">
+  <li><a href="#data-setup" id="toc-data-setup" class="nav-link" data-scroll-target="#data-setup">4.3.1 Data setup</a></li>
+  <li><a href="#using-error-bars-for-margins-of-error" id="toc-using-error-bars-for-margins-of-error" class="nav-link" data-scroll-target="#using-error-bars-for-margins-of-error">4.3.2 Using error bars for margins of error</a></li>
+  </ul></li>
+  <li><a href="#visualizing-acs-estimates-over-time" id="toc-visualizing-acs-estimates-over-time" class="nav-link" data-scroll-target="#visualizing-acs-estimates-over-time">4.4 Visualizing ACS estimates over time</a></li>
+  <li><a href="#exploring-age-and-sex-structure-with-population-pyramids" id="toc-exploring-age-and-sex-structure-with-population-pyramids" class="nav-link" data-scroll-target="#exploring-age-and-sex-structure-with-population-pyramids">4.5 Exploring age and sex structure with population pyramids</a>
+  <ul class="collapse">
+  <li><a href="#preparing-data-from-the-population-estimates-api" id="toc-preparing-data-from-the-population-estimates-api" class="nav-link" data-scroll-target="#preparing-data-from-the-population-estimates-api">4.5.1 Preparing data from the Population Estimates API</a></li>
+  <li><a href="#designing-and-styling-the-population-pyramid" id="toc-designing-and-styling-the-population-pyramid" class="nav-link" data-scroll-target="#designing-and-styling-the-population-pyramid">4.5.2 Designing and styling the population pyramid</a></li>
+  </ul></li>
+  <li><a href="#visualizing-group-wise-comparisons" id="toc-visualizing-group-wise-comparisons" class="nav-link" data-scroll-target="#visualizing-group-wise-comparisons">4.6 Visualizing group-wise comparisons</a></li>
+  <li><a href="#advanced-visualization-with-ggplot2-extensions" id="toc-advanced-visualization-with-ggplot2-extensions" class="nav-link" data-scroll-target="#advanced-visualization-with-ggplot2-extensions">4.7 Advanced visualization with ggplot2 extensions</a>
+  <ul class="collapse">
+  <li><a href="#density-ridges" id="toc-density-ridges" class="nav-link" data-scroll-target="#density-ridges">4.7.1 Density ridges</a></li>
+  <li><a href="#ggbeeswarm" id="toc-ggbeeswarm" class="nav-link" data-scroll-target="#ggbeeswarm">4.7.2 ggbeeswarm</a></li>
+  <li><a href="#geofaceted-plots" id="toc-geofaceted-plots" class="nav-link" data-scroll-target="#geofaceted-plots">4.7.3 Geofaceted plots</a></li>
+  <li><a href="#interactive-visualization-with-plotly" id="toc-interactive-visualization-with-plotly" class="nav-link" data-scroll-target="#interactive-visualization-with-plotly">4.7.4 Interactive visualization with plotly</a></li>
+  </ul></li>
+  </ul></li>
+  </ul>
+<div class="quarto-other-links"><h2>Other Links</h2><ul><li><a href="https://github.com/deandevl/RcensusPkg"><i class="bi bi-link-45deg"></i>RcensusPkg</a></li><li><a href="https://github.com/deandevl/RspatialPkg"><i class="bi bi-link-45deg"></i>RspatialPkg</a></li><li><a href="https://github.com/deandevl/RplotterPkg"><i class="bi bi-link-45deg"></i>RplotterPkg</a></li><li><a href="https://cran.r-project.org/web/packages/data.table/index.html"><i class="bi bi-link-45deg"></i>data.table</a></li><li><a href="https://github.com/deandevl"><i class="bi bi-link-45deg"></i>deandevl</a></li></ul></div><div class="quarto-code-links"><h2>Code Links</h2><ul><li><a href="https://github.com/deandevl/Techniques-in-Acquisition-Computation-and-Display-of-Census-Bureau-Data"><i class="bi bi-github"></i>source</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content page-columns page-full" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">November 15, 2024</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="exploring-us-census-data-with-visualization" class="level1 page-columns page-full">
+<h1>4 Exploring US Census data with visualization</h1>
+<div class="task">
+<p>Load the Required R Packages from CRAN:</p>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(usmap)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(data.table)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(kableExtra)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(scales)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(stringr)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(purrr)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(here)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(magrittr)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(devtools)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="task">
+<p>Load the packages ‘deandevl/RcensusPkg’ and ‘deandevl/RplotterPkg’.</p>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>devtools<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">'deandevl/RcensusPkg'</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>devtools<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">'deandevl/RplotterPkg'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<section id="basic-census-visualization-with-ggplot2" class="level2 page-columns page-full">
+<h2 class="anchored" data-anchor-id="basic-census-visualization-with-ggplot2">4.1 Basic Census visualization with ggplot2</h2>
+<p>Gather the data for our first ggplot2 plot.</p>
+<div class="task">
+<p>From the 2016-2020 “acs/acs5” data set obtain the median household income and age data by county in the state of Georgia.</p>
+</div>
+<p>Call <code>RcensusPkg::get_vintage_data()</code>:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>ga_fips <span class="ot">&lt;-</span> usmap<span class="sc">::</span><span class="fu">fips</span>(<span class="st">"GA"</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>vars <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"B19013_001E"</span>, <span class="st">"B19013_001M"</span>, <span class="st">"B01002_001E"</span>, <span class="st">"B01002_001M"</span>)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>ga_dt <span class="ot">&lt;-</span> RcensusPkg<span class="sc">::</span><span class="fu">get_vintage_data</span>(</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">dataset =</span> <span class="st">"acs/acs5"</span>,</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">vintage =</span> <span class="dv">2020</span>,</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">vars =</span> vars,</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">region =</span> <span class="st">"county:*"</span>,</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">regionin =</span> <span class="fu">paste0</span>(<span class="st">"state:"</span>, ga_fips),</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>) <span class="sc">%&gt;%</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>data.table<span class="sc">::</span><span class="fu">setnames</span>(., <span class="at">old =</span> vars, <span class="at">new =</span> <span class="fu">c</span>(<span class="st">"medincE"</span>,<span class="st">"medincM"</span>,<span class="st">"medageE"</span>,<span class="st">"medageM"</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>.[, <span class="st">`</span><span class="at">:=</span><span class="st">`</span>(<span class="at">medincE =</span> <span class="fu">as.numeric</span>(medincE), <span class="at">medageE =</span> <span class="fu">as.numeric</span>(medageE))] <span class="sc">%&gt;%</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>.[, .(GEOID,NAME,medincE,medageE)]  </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<table data-quarto-postprocess="true" class="table table-sm table-striped small">
+<caption>Table 4.1a: Household median income and age across Georgia counties</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;" data-quarto-table-cell-role="th">GEOID</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">NAME</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">medincE</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">medageE</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">13001</td>
+<td style="text-align: left;">Appling County, Georgia</td>
+<td style="text-align: right;">37924</td>
+<td style="text-align: right;">39.9</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">13003</td>
+<td style="text-align: left;">Atkinson County, Georgia</td>
+<td style="text-align: right;">35703</td>
+<td style="text-align: right;">35.9</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">13005</td>
+<td style="text-align: left;">Bacon County, Georgia</td>
+<td style="text-align: right;">36692</td>
+<td style="text-align: right;">36.5</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">13007</td>
+<td style="text-align: left;">Baker County, Georgia</td>
+<td style="text-align: right;">34034</td>
+<td style="text-align: right;">52.2</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">13011</td>
+<td style="text-align: left;">Banks County, Georgia</td>
+<td style="text-align: right;">50912</td>
+<td style="text-align: right;">41.5</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">13013</td>
+<td style="text-align: left;">Barrow County, Georgia</td>
+<td style="text-align: right;">62990</td>
+<td style="text-align: right;">36.0</td>
+</tr>
+</tbody>
+</table>
+
+
+</div>
+</div>
+</div>
+<section id="getting-started-with-ggplot2" class="level3 page-columns page-full">
+<h3 class="anchored" data-anchor-id="getting-started-with-ggplot2">Getting started with ggplot2</h3>
+<div class="task">
+<p>Graph the histogram of the variable “medincE” from <code>ga_dt</code> across 30 bins.</p>
+</div>
+<div class="cell page-columns page-full">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>RplotterPkg<span class="sc">::</span><span class="fu">create_histogram_plot</span>(</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">df =</span> ga_dt,</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_x =</span> <span class="st">"medincE"</span>,</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_title =</span> <span class="st">"Median Income"</span>,</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">y_title =</span> <span class="st">"Count"</span>,</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">rot_y_tic_label =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">bar_fill =</span> <span class="st">"navy"</span>,</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">bar_color =</span> <span class="st">"white"</span>,</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">bar_lwd =</span> <span class="fl">0.8</span>,</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">bins =</span> <span class="dv">30</span>,</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_major_breaks =</span> <span class="fu">seq</span>(<span class="dv">20000</span>, <span class="dv">120000</span>, <span class="dv">20000</span>),</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_labels =</span> <span class="cf">function</span>(x) <span class="fu">paste0</span>(<span class="st">"$"</span>, x<span class="sc">/</span><span class="dv">1000</span>,<span class="st">"k"</span>)</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+
+<div class="no-row-height column-margin column-container"><div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="4_exploring_census_visualization_files/figure-html/unnamed-chunk-5-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Figure 4.1: Histogram of median household income, Georgia counties</figcaption>
+</figure>
+</div>
+</div></div></div>
+<div class="task">
+<p>Graph the histogram of the variable “medincE” across 15 bins.</p>
+</div>
+<div class="cell page-columns page-full">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>RplotterPkg<span class="sc">::</span><span class="fu">create_histogram_plot</span>(</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">df =</span> ga_dt,</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_x =</span> <span class="st">"medincE"</span>,</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_title =</span> <span class="st">"Median Income"</span>,</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">y_title =</span> <span class="st">"Count"</span>,</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">rot_y_tic_label =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">bar_fill =</span> <span class="st">"navy"</span>,</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">bar_color =</span> <span class="st">"white"</span>,</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">bar_lwd =</span> <span class="fl">0.8</span>,</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">bins =</span> <span class="dv">15</span>,</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_major_breaks =</span> <span class="fu">seq</span>(<span class="dv">20000</span>, <span class="dv">120000</span>, <span class="dv">20000</span>),</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_labels =</span> <span class="cf">function</span>(x) <span class="fu">paste0</span>(<span class="st">"$"</span>, x<span class="sc">/</span><span class="dv">1000</span>,<span class="st">"k"</span>)</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+
+<div class="no-row-height column-margin column-container"><div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="4_exploring_census_visualization_files/figure-html/unnamed-chunk-6-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Figure 4.2: Histogram with the number of bins reduced to 15</figcaption>
+</figure>
+</div>
+</div></div></div>
+<div class="task">
+<p>Graph the box-plot (box-and-whisker) of “medincE”.</p>
+</div>
+<div class="cell page-columns page-full">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>RplotterPkg<span class="sc">::</span><span class="fu">create_box_plot</span>(</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">df =</span> ga_dt,</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_y =</span> <span class="st">"medincE"</span>,</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_title =</span> <span class="st">" "</span>,</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">y_title =</span> <span class="st">"Median Income"</span>,</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">box_color =</span> <span class="st">"black"</span>,</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">box_line_width =</span> <span class="fl">1.0</span>,</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">box_fill =</span> <span class="st">"navy"</span>,</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">box_alpha =</span> <span class="fl">0.7</span>,</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">rot_y_tic_label =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">y_scientific =</span> <span class="cn">FALSE</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+
+<div class="no-row-height column-margin column-container"><div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="4_exploring_census_visualization_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Figure 4.3: Box plot of median household income, Georgia counties</figcaption>
+</figure>
+</div>
+</div></div></div>
+</section>
+<section id="visualizing-multivariate-relationships-with-scatter-plots" class="level3 page-columns page-full">
+<h3 class="anchored" data-anchor-id="visualizing-multivariate-relationships-with-scatter-plots">4.1.2 Visualizing multivariate relationships with scatter plots</h3>
+<div class="task">
+<p>From the above Georgia household data frame <code>ga_dt</code> produce a scatter plot of “medageE” vs “medincE”.</p>
+</div>
+<div class="cell page-columns page-full">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>RplotterPkg<span class="sc">::</span><span class="fu">create_scatter_plot</span>(</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">df =</span> ga_dt,</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_x =</span> <span class="st">"medageE"</span>,</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_y =</span> <span class="st">"medincE"</span>,</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_title =</span> <span class="st">"Median Age"</span>,</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">y_title =</span> <span class="st">"Median Income"</span>,</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">rot_y_tic_label =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">pts_fill =</span> <span class="st">"navy"</span>,</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">pts_size =</span> <span class="fl">2.0</span>,</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_y_scientific =</span> <span class="fu">c</span>(<span class="cn">FALSE</span>, <span class="cn">FALSE</span>)</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+
+<div class="no-row-height column-margin column-container"><div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="4_exploring_census_visualization_files/figure-html/unnamed-chunk-8-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Figure 4.4: Scatter plot of median age and median household income, counties in Georgia</figcaption>
+</figure>
+</div>
+</div></div></div>
+<p>In measuring the relationship between age and income, the R language offers two simple functions. First, the <code>stats::lm()</code> function can be used to fit a linear model. Second, we can submit the resulting <code>stats::lm()</code> object to <code>stats:predict()</code> and return fitted values along with per point standard errors for computing upper/lower confidence bands for the fit.</p>
+<div class="task">
+<p>Define a simple linear regression between variables “medageE” and “medinc E” from the <code>ga_dt</code> data frame using <code>stats::lm()</code>.</p>
+</div>
+<p>Use <code>stats::lm()</code> to define the linear model:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>age_income_model <span class="ot">&lt;-</span> stats<span class="sc">::</span><span class="fu">lm</span>(medincE <span class="sc">~</span> medageE, <span class="at">data =</span> ga_dt)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Submit the model to <code>stats::predict()</code> and return the fitted values along with computing the upper/lower confidence values:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>a_predict <span class="ot">&lt;-</span> stats<span class="sc">::</span><span class="fu">predict</span>(<span class="at">object =</span> age_income_model, <span class="at">se.fit =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>ci_lower <span class="ot">&lt;-</span> a_predict<span class="sc">$</span>fit <span class="sc">-</span> (<span class="dv">2</span> <span class="sc">*</span> a_predict<span class="sc">$</span>se.fit)</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>ci_upper <span class="ot">&lt;-</span> a_predict<span class="sc">$</span>fit <span class="sc">+</span> (<span class="dv">2</span> <span class="sc">*</span> a_predict<span class="sc">$</span>se.fit)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Append the fitted and confidence level values to <code>ga_dt</code>:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>ga_dt[, <span class="st">`</span><span class="at">:=</span><span class="st">`</span>(<span class="at">fit =</span> a_predict<span class="sc">$</span>fit, <span class="at">ci_lower =</span> ci_lower, <span class="at">ci_upper =</span> ci_upper)]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Plot the data using <code>RplotterPkg::create_scatter_plot()</code>:</p>
+<div class="cell page-columns page-full">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>RplotterPkg<span class="sc">::</span><span class="fu">create_scatter_plot</span>(</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">df =</span> ga_dt,</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_x =</span> <span class="st">"medageE"</span>,</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_y =</span> <span class="st">"medincE"</span>,</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_CI_lwr =</span> <span class="st">"ci_lower"</span>,</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_CI_upr =</span> <span class="st">"ci_upper"</span>,</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_title =</span> <span class="st">"Median Age"</span>,</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">y_title =</span> <span class="st">"Median Income"</span>,</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">rot_y_tic_label =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">pts_fill =</span> <span class="st">"navy"</span>,</span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">pts_size =</span> <span class="fl">2.0</span>,</span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_y_scientific =</span> <span class="fu">c</span>(<span class="cn">FALSE</span>, <span class="cn">FALSE</span>),</span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">CI_show_ribbon =</span> <span class="cn">TRUE</span></span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>) <span class="sc">+</span> ggplot2<span class="sc">::</span><span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> ga_dt<span class="sc">$</span>fit), <span class="at">color=</span><span class="st">"blue"</span>, <span class="at">linewidth=</span><span class="fl">1.5</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+
+<div class="no-row-height column-margin column-container"><div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="4_exploring_census_visualization_files/figure-html/unnamed-chunk-12-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Figure 4.5: Scatter plot with linear relationship superimposed on the graphic</figcaption>
+</figure>
+</div>
+</div></div></div>
+</section>
+</section>
+<section id="customizing-ggplot2-visualizations" class="level2 page-columns page-full">
+<h2 class="anchored" data-anchor-id="customizing-ggplot2-visualizations">4.2 Customizing ggplot2 visualizations</h2>
+<p>As demonstrated in the above plots the <code>RplotterPkg::</code> provides easy functional based customization of many of ggplot2’s parameters.</p>
+<p>To continue with the customization…</p>
+<div class="task">
+<p>Show the percent of commuters that take public transportation to work for the largest metropolitan areas in the United States for vintage 2019.</p>
+</div>
+<p>Get the description of variables ID “DP03_0021PE” and “B01003_001E” in the “acs/acs1/profile” and “acs/acs1” data sets respectively for vintage 2019:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>DP03_0021PE_dt <span class="ot">&lt;-</span> RcensusPkg<span class="sc">::</span><span class="fu">get_variable_names</span>(</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">dataset =</span> <span class="st">"acs/acs1/profile"</span>,</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">vintage =</span> <span class="dv">2019</span>,</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">vars =</span> <span class="st">"DP03_0021PE"</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>B01003_001E_dt <span class="ot">&lt;-</span> RcensusPkg<span class="sc">::</span><span class="fu">get_variable_names</span>(</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">dataset =</span> <span class="st">"acs/acs1"</span>,</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">vintage =</span> <span class="dv">2019</span>,</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">vars =</span> <span class="st">"B01003_001E"</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>DP03_0021PE_B01003_001E_dt <span class="ot">&lt;-</span> <span class="fu">rbind</span>(DP03_0021PE_dt,B01003_001E_dt)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<table data-quarto-postprocess="true" class="table table-sm table-striped small">
+<caption>Table 4.1b: Description of ‘DP03_0021PE’ and B01003_001E, acs/acs1/profile</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;" data-quarto-table-cell-role="th">name</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">label</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">concept</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">required</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">predicateType</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">DP03_0021PE</td>
+<td style="text-align: left;">Percent!!COMMUTING TO WORK!!Workers 16 years and over!!Public transportation (excluding taxicab)</td>
+<td style="text-align: left;">SELECTED ECONOMIC CHARACTERISTICS</td>
+<td style="text-align: left;">NA</td>
+<td style="text-align: left;">float</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">B01003_001E</td>
+<td style="text-align: left;">Estimate!!Total</td>
+<td style="text-align: left;">TOTAL POPULATION</td>
+<td style="text-align: left;">NA</td>
+<td style="text-align: left;">int</td>
+</tr>
+</tbody>
+</table>
+
+
+</div>
+</div>
+</div>
+<div class="task">
+<p>We have both percent estimate with acronym of “DP03_0021PE” and “B01003_001E” available. Get the percentage of workers commuting on public transportation.</p>
+</div>
+<p>Use <code>RcensusPkg::get_vintage_data()</code>:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>commute_percent_dt <span class="ot">&lt;-</span> RcensusPkg<span class="sc">::</span><span class="fu">get_vintage_data</span>(</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">dataset =</span> <span class="st">"acs/acs1/profile"</span>,</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">vintage =</span> <span class="dv">2019</span>,</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">vars =</span> <span class="fu">c</span>(<span class="st">"DP03_0021PE"</span>, <span class="st">"DP03_0021PM"</span>),</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">region =</span> <span class="st">"metropolitan statistical area/micropolitan statistical area"</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>) <span class="sc">%&gt;%</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>data.table<span class="sc">::</span><span class="fu">setnames</span>(., <span class="at">old =</span> <span class="fu">c</span>(<span class="st">"DP03_0021PE"</span>, <span class="st">"DP03_0021PM"</span>), <span class="at">new =</span> <span class="fu">c</span>(<span class="st">"estimate"</span>, <span class="st">"moe"</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>.[, <span class="st">`</span><span class="at">:=</span><span class="st">`</span>(<span class="at">variable =</span> <span class="st">"DP03_0021P"</span>, <span class="at">estimate =</span> <span class="fu">as.numeric</span>(estimate), <span class="at">moe =</span> <span class="fu">as.numeric</span>(moe))] <span class="sc">%&gt;%</span> </span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>.[, .(GEOID, NAME, variable, estimate, moe)] <span class="sc">%&gt;%</span></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>.[<span class="fu">order</span>(<span class="sc">-</span>estimate)] <span class="sc">%&gt;%</span> </span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>.[<span class="dv">1</span><span class="sc">:</span><span class="dv">20</span>,]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<table data-quarto-postprocess="true" class="table table-sm table-striped small">
+<caption>Table 4.1: Large metro areas by public transit commuting share</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;" data-quarto-table-cell-role="th">GEOID</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">NAME</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">variable</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">estimate</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">moe</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">35620</td>
+<td style="text-align: left;">New York-Newark-Jersey City, NY-NJ-PA Metro Area</td>
+<td style="text-align: left;">DP03_0021P</td>
+<td style="text-align: right;">31.6</td>
+<td style="text-align: right;">0.2</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">41860</td>
+<td style="text-align: left;">San Francisco-Oakland-Berkeley, CA Metro Area</td>
+<td style="text-align: left;">DP03_0021P</td>
+<td style="text-align: right;">18.9</td>
+<td style="text-align: right;">0.4</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">14460</td>
+<td style="text-align: left;">Boston-Cambridge-Newton, MA-NH Metro Area</td>
+<td style="text-align: left;">DP03_0021P</td>
+<td style="text-align: right;">13.4</td>
+<td style="text-align: right;">0.4</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">47900</td>
+<td style="text-align: left;">Washington-Arlington-Alexandria, DC-VA-MD-WV Metro Area</td>
+<td style="text-align: left;">DP03_0021P</td>
+<td style="text-align: right;">13.1</td>
+<td style="text-align: right;">0.4</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">16980</td>
+<td style="text-align: left;">Chicago-Naperville-Elgin, IL-IN-WI Metro Area</td>
+<td style="text-align: left;">DP03_0021P</td>
+<td style="text-align: right;">12.4</td>
+<td style="text-align: right;">0.3</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">42660</td>
+<td style="text-align: left;">Seattle-Tacoma-Bellevue, WA Metro Area</td>
+<td style="text-align: left;">DP03_0021P</td>
+<td style="text-align: right;">10.7</td>
+<td style="text-align: right;">0.4</td>
+</tr>
+</tbody>
+</table>
+
+
+</div>
+</div>
+</div>
+<div class="task">
+<p>Show an unimproved bar chart of the first sorted 20 metro areas from <code>commute_percent_dt</code> – the percentage of commuters from metro areas.</p>
+</div>
+<div class="cell page-columns page-full">
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>RplotterPkg<span class="sc">::</span><span class="fu">create_bar_plot</span>(</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">df =</span> commute_percent_dt,</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_x =</span> <span class="st">"NAME"</span>,</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_y =</span> <span class="st">"estimate"</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+
+<div class="no-row-height column-margin column-container"><div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="4_exploring_census_visualization_files/figure-html/unnamed-chunk-17-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Figure 4.6: A first bar chart with ggplot2</figcaption>
+</figure>
+</div>
+</div></div></div>
+<p>The chart could use improvements in sorting, the x-axis tic labels, axis titles,</p>
+<section id="improving-plot-legibility" class="level3 page-columns page-full">
+<h3 class="anchored" data-anchor-id="improving-plot-legibility">4.2.1 Improving plot legibility</h3>
+<div class="task">
+<p>Clean up the metropolitan area names using the <code>stringr</code> package.</p>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>commute_percent_dt <span class="sc">%&gt;%</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>.[, NAME <span class="sc">:</span><span class="er">=</span> stringr<span class="sc">::</span><span class="fu">str_remove</span>(NAME, <span class="st">"-.*$"</span>)] <span class="sc">%&gt;%</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>.[, NAME <span class="sc">:</span><span class="er">=</span> stringr<span class="sc">::</span><span class="fu">str_remove</span>(NAME, <span class="st">",.*$"</span>)] <span class="sc">%&gt;%</span></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>.[, NAME <span class="sc">:</span><span class="er">=</span> <span class="fu">as.factor</span>(NAME)]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="task">
+<p>Re-display the bar chart with the “estimate” parameter on the x axis and the “NAME” parameter on the y axis; the bars sorted in descending order; re-title the axis’; rotate the y axis tic labels to horizontal.</p>
+</div>
+<div class="cell page-columns page-full">
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>RplotterPkg<span class="sc">::</span><span class="fu">create_bar_plot</span>(</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">df =</span> commute_percent_dt,</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_x =</span> <span class="st">"NAME"</span>,</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_y =</span> <span class="st">"estimate"</span>,</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_title =</span> <span class="st">"Metro Area"</span>,</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">y_title =</span> <span class="st">"estimate"</span>,</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">rot_y_tic_label =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">order_bars =</span> <span class="st">"asc"</span>,</span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">do_coord_flip =</span> <span class="cn">TRUE</span></span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+
+<div class="no-row-height column-margin column-container"><div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="4_exploring_census_visualization_files/figure-html/unnamed-chunk-19-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Figure 4.7: An improved bar chart with ggplot2</figcaption>
+</figure>
+</div>
+</div></div></div>
+<div class="task">
+<p>Improve the bar chart further with titles and captions.</p>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>RplotterPkg<span class="sc">::</span><span class="fu">create_bar_plot</span>(</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">df =</span> commute_percent_dt,</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_x =</span> <span class="st">"NAME"</span>,</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_y =</span> <span class="st">"estimate"</span>,</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">title =</span> <span class="st">"Public transit commute share"</span>,</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">subtitle =</span> <span class="st">"2019 1-year ACS estimates"</span>,</span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">y_title =</span> <span class="st">"ACS estimate"</span>,</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">"Source: ACS Data Profile variable DP03_0021P via the RcensusPkg R package"</span>,</span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">rot_y_tic_label =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">order_bars =</span> <span class="st">"asc"</span>,</span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">do_coord_flip =</span> <span class="cn">TRUE</span></span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="4_exploring_census_visualization_files/figure-html/unnamed-chunk-20-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Figure 4.8: A cleaned-up bar chart with ggplot2</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="custom-styling-of-ggplot2-charts" class="level3">
+<h3 class="anchored" data-anchor-id="custom-styling-of-ggplot2-charts">4.2.2 Custom styling of ggplot2 charts</h3>
+<div class="task">
+<p>Improve further by customizing the scaling, bar widths/outline, labeling, and color styling.</p>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>RplotterPkg<span class="sc">::</span><span class="fu">create_bar_plot</span>(</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">df =</span> commute_percent_dt,</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_x =</span> <span class="st">"NAME"</span>,</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_y =</span> <span class="st">"estimate"</span>,</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">title =</span> <span class="st">"Public transit commute share"</span>,</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">subtitle =</span> <span class="st">"2019 1-year ACS estimates"</span>,</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">y_title =</span> <span class="st">"ACS estimate"</span>,</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">"Source: ACS Data Profile variable DP03_0021P via the RcensusPkg R package"</span>,</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">rot_y_tic_label =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">bar_fill =</span> <span class="st">"navy"</span>,</span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">bar_alpha =</span> <span class="fl">0.5</span>,</span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">bar_color =</span> <span class="st">"black"</span>,</span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">bar_width =</span> <span class="fl">0.8</span>,</span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">bar_lwd =</span> <span class="dv">1</span>,</span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">order_bars =</span> <span class="st">"asc"</span>,</span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">do_coord_flip =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a>  <span class="at">y_labels =</span> scales<span class="sc">::</span><span class="fu">label_percent</span>(<span class="at">scale =</span> <span class="dv">1</span>)</span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a>) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="4_exploring_census_visualization_files/figure-html/unnamed-chunk-21-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Figure 4.9: A ggplot2 bar chart with custom styling</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="exporting-data-visualizations-from-r" class="level3 page-columns page-full">
+<h3 class="anchored" data-anchor-id="exporting-data-visualizations-from-r">4.2.3 Exporting data visualizations from R</h3>
+<div class="task">
+<p>Export the above bar chart as a png image using <code>RplotterPkg::create_bar_plot</code>.</p>
+</div>
+<div class="page-columns page-full"><p></p><div class="no-row-height column-margin column-container"><span class="">Look for the png image file ‘commute_percent_barchart.png’ in the <em>images</em> folder under the current directory.</span></div></div>
+<div class="cell page-columns page-full">
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>image_file_path <span class="ot">&lt;-</span> <span class="fu">file.path</span>(here<span class="sc">::</span><span class="fu">here</span>(), <span class="st">"images"</span>, <span class="st">"commute_percent_barchart.png"</span>)</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>RplotterPkg<span class="sc">::</span><span class="fu">create_bar_plot</span>(</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">df =</span> commute_percent_dt,</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_x =</span> <span class="st">"NAME"</span>,</span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_y =</span> <span class="st">"estimate"</span>,</span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">title =</span> <span class="st">"Public transit commute share"</span>,</span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">subtitle =</span> <span class="st">"2019 1-year ACS estimates"</span>,</span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">y_title =</span> <span class="st">"ACS estimate"</span>,</span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">"Source: ACS Data Profile variable DP03_0021P via the RcensusPkg R package"</span>,</span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">rot_y_tic_label =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">bar_fill =</span> <span class="st">"navy"</span>,</span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">bar_alpha =</span> <span class="fl">0.5</span>,</span>
+<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">bar_color =</span> <span class="st">"black"</span>,</span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">bar_width =</span> <span class="fl">0.8</span>,</span>
+<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">bar_lwd =</span> <span class="dv">1</span>,</span>
+<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a>  <span class="at">order_bars =</span> <span class="st">"asc"</span>,</span>
+<span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a>  <span class="at">do_coord_flip =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb19-19"><a href="#cb19-19" aria-hidden="true" tabindex="-1"></a>  <span class="at">y_labels =</span> scales<span class="sc">::</span><span class="fu">label_percent</span>(<span class="at">scale =</span> <span class="dv">1</span>),</span>
+<span id="cb19-20"><a href="#cb19-20" aria-hidden="true" tabindex="-1"></a>  <span class="at">png_file_path =</span> image_file_path,</span>
+<span id="cb19-21"><a href="#cb19-21" aria-hidden="true" tabindex="-1"></a>  <span class="at">png_width_height =</span> <span class="fu">c</span>(<span class="dv">850</span>, <span class="dv">550</span>)</span>
+<span id="cb19-22"><a href="#cb19-22" aria-hidden="true" tabindex="-1"></a>) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+
+<div class="no-row-height column-margin column-container"><div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="4_exploring_census_visualization_files/figure-html/unnamed-chunk-22-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div></div></div>
+</section>
+</section>
+<section id="visualizing-margins-of-error" class="level2 page-columns page-full">
+<h2 class="anchored" data-anchor-id="visualizing-margins-of-error">4.3 Visualizing margins of error</h2>
+<blockquote class="blockquote">
+<p>…it is also often useful to visualize those margins of error to illustrate the degree of uncertainty around estimates, especially when making comparisons between those estimates.</p>
+</blockquote>
+<section id="data-setup" class="level3 page-columns page-full">
+<h3 class="anchored" data-anchor-id="data-setup">4.3.1 Data setup</h3>
+<p>We will be looking at the median household income across counties in Maine from the “acs/acs5” with vintage 2020.</p>
+<div class="task">
+<p>Start by getting the Maine county total population data (variable “P1_001N”) from the 2020 Decennial Census.</p>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>me_fips <span class="ot">&lt;-</span> usmap<span class="sc">::</span><span class="fu">fips</span>(<span class="st">"ME"</span>)</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>me_pop_dt <span class="ot">&lt;-</span> RcensusPkg<span class="sc">::</span><span class="fu">get_vintage_data</span>(</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">dataset =</span> <span class="st">"dec/pl"</span>,</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">vintage =</span> <span class="dv">2020</span>,</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">vars =</span> <span class="st">"P1_001N"</span>,</span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">region =</span> <span class="st">"county:*"</span>,</span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">regionin =</span> <span class="fu">paste0</span>(<span class="st">"state:"</span>, me_fips)) <span class="sc">%&gt;%</span></span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>data.table<span class="sc">::</span><span class="fu">setnames</span>(., <span class="at">old =</span> <span class="st">"P1_001N"</span>, <span class="at">new =</span> <span class="st">"value"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>.[, <span class="st">`</span><span class="at">:=</span><span class="st">`</span>(<span class="at">variable =</span> <span class="st">"totalpop"</span>, <span class="at">value =</span> <span class="fu">as.numeric</span>(value))] <span class="sc">%&gt;%</span></span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>.[, .(GEOID,NAME,variable,value)] <span class="sc">%&gt;%</span></span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>.[<span class="fu">order</span>(<span class="sc">-</span>value),]  </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<table data-quarto-postprocess="true" class="table table-sm table-striped small">
+<caption>Table 4.2: Population sizes of counties in Maine</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;" data-quarto-table-cell-role="th">GEOID</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">NAME</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">variable</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">23005</td>
+<td style="text-align: left;">Cumberland County, Maine</td>
+<td style="text-align: left;">totalpop</td>
+<td style="text-align: right;">303069</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">23031</td>
+<td style="text-align: left;">York County, Maine</td>
+<td style="text-align: left;">totalpop</td>
+<td style="text-align: right;">211972</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">23019</td>
+<td style="text-align: left;">Penobscot County, Maine</td>
+<td style="text-align: left;">totalpop</td>
+<td style="text-align: right;">152199</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">23011</td>
+<td style="text-align: left;">Kennebec County, Maine</td>
+<td style="text-align: left;">totalpop</td>
+<td style="text-align: right;">123642</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">23001</td>
+<td style="text-align: left;">Androscoggin County, Maine</td>
+<td style="text-align: left;">totalpop</td>
+<td style="text-align: right;">111139</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">23003</td>
+<td style="text-align: left;">Aroostook County, Maine</td>
+<td style="text-align: left;">totalpop</td>
+<td style="text-align: right;">67105</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">23017</td>
+<td style="text-align: left;">Oxford County, Maine</td>
+<td style="text-align: left;">totalpop</td>
+<td style="text-align: right;">57777</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">23009</td>
+<td style="text-align: left;">Hancock County, Maine</td>
+<td style="text-align: left;">totalpop</td>
+<td style="text-align: right;">55478</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">23025</td>
+<td style="text-align: left;">Somerset County, Maine</td>
+<td style="text-align: left;">totalpop</td>
+<td style="text-align: right;">50477</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">23013</td>
+<td style="text-align: left;">Knox County, Maine</td>
+<td style="text-align: left;">totalpop</td>
+<td style="text-align: right;">40607</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">23027</td>
+<td style="text-align: left;">Waldo County, Maine</td>
+<td style="text-align: left;">totalpop</td>
+<td style="text-align: right;">39607</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">23023</td>
+<td style="text-align: left;">Sagadahoc County, Maine</td>
+<td style="text-align: left;">totalpop</td>
+<td style="text-align: right;">36699</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">23015</td>
+<td style="text-align: left;">Lincoln County, Maine</td>
+<td style="text-align: left;">totalpop</td>
+<td style="text-align: right;">35237</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">23029</td>
+<td style="text-align: left;">Washington County, Maine</td>
+<td style="text-align: left;">totalpop</td>
+<td style="text-align: right;">31095</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">23007</td>
+<td style="text-align: left;">Franklin County, Maine</td>
+<td style="text-align: left;">totalpop</td>
+<td style="text-align: right;">29456</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">23021</td>
+<td style="text-align: left;">Piscataquis County, Maine</td>
+<td style="text-align: left;">totalpop</td>
+<td style="text-align: right;">16800</td>
+</tr>
+</tbody>
+</table>
+
+
+</div>
+</div>
+</div>
+<blockquote class="blockquote">
+<p>There are seventeen counties in Main, ranging in population from a maximum of 303,069 to a minimum of 16,800. In turn, estimates for the counties with small population sizes are likely to be subject to a larger margin of error than those with a larger baseline populations.</p>
+</blockquote>
+<div class="task">
+<p>Get the Maine total household income along with their margin of errors across the counties for 2020.</p>
+</div>
+<p>We want data for variable acronym “B19013_001” from the 2016-2020 ACS:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>me_income_dt <span class="ot">&lt;-</span> RcensusPkg<span class="sc">::</span><span class="fu">get_vintage_data</span>(</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">dataset =</span> <span class="st">"acs/acs5"</span>,</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">vintage =</span> <span class="dv">2020</span>,</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">vars =</span> <span class="fu">c</span>(<span class="st">"B19013_001E"</span>, <span class="st">"B19013_001M"</span>),</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">region =</span> <span class="st">"county:*"</span>,</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">regionin =</span> <span class="fu">paste0</span>(<span class="st">"state:"</span>, me_fips)) <span class="sc">%&gt;%</span></span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>  data.table<span class="sc">::</span><span class="fu">setnames</span>(., <span class="at">old =</span> <span class="fu">c</span>(<span class="st">"B19013_001E"</span>, <span class="st">"B19013_001M"</span>), <span class="at">new =</span> <span class="fu">c</span>(<span class="st">"estimate"</span>, <span class="st">"moe"</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>  .[, <span class="st">`</span><span class="at">:=</span><span class="st">`</span>(<span class="at">estimate =</span> <span class="fu">as.numeric</span>(estimate), <span class="at">moe =</span> <span class="fu">as.numeric</span>(moe))] <span class="sc">%&gt;%</span> </span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a>  .[, NAME <span class="sc">:</span><span class="er">=</span> stringr<span class="sc">::</span><span class="fu">str_remove</span>(NAME, <span class="st">" County, Maine"</span>)] <span class="sc">%&gt;%</span>  </span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a>  .[<span class="fu">order</span>(estimate)] <span class="sc">%&gt;%</span>                                                 </span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a>  .[, NAME <span class="sc">:</span><span class="er">=</span> <span class="fu">factor</span>(NAME, <span class="at">levels =</span> NAME)] <span class="sc">%&gt;%</span></span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a>  .[, .(GEOID,NAME,estimate,moe)] <span class="sc">%&gt;%</span> </span>
+<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a>  .[<span class="fu">order</span>(<span class="sc">-</span>moe),] </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<table data-quarto-postprocess="true" class="table table-sm table-striped small">
+<caption>Table 4.2a: Household income of counties in Maine</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;" data-quarto-table-cell-role="th">GEOID</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">NAME</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">estimate</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">moe</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">23023</td>
+<td style="text-align: left;">Sagadahoc</td>
+<td style="text-align: right;">68039</td>
+<td style="text-align: right;">4616</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">23015</td>
+<td style="text-align: left;">Lincoln</td>
+<td style="text-align: right;">58125</td>
+<td style="text-align: right;">3974</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">23027</td>
+<td style="text-align: left;">Waldo</td>
+<td style="text-align: right;">58034</td>
+<td style="text-align: right;">3482</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">23007</td>
+<td style="text-align: left;">Franklin</td>
+<td style="text-align: right;">51630</td>
+<td style="text-align: right;">2948</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">23021</td>
+<td style="text-align: left;">Piscataquis</td>
+<td style="text-align: right;">42083</td>
+<td style="text-align: right;">2883</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">23025</td>
+<td style="text-align: left;">Somerset</td>
+<td style="text-align: right;">45382</td>
+<td style="text-align: right;">2694</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">23009</td>
+<td style="text-align: left;">Hancock</td>
+<td style="text-align: right;">58345</td>
+<td style="text-align: right;">2593</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">23013</td>
+<td style="text-align: left;">Knox</td>
+<td style="text-align: right;">57794</td>
+<td style="text-align: right;">2528</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">23017</td>
+<td style="text-align: left;">Oxford</td>
+<td style="text-align: right;">49761</td>
+<td style="text-align: right;">2380</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">23003</td>
+<td style="text-align: left;">Aroostook</td>
+<td style="text-align: right;">43791</td>
+<td style="text-align: right;">2306</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">23029</td>
+<td style="text-align: left;">Washington</td>
+<td style="text-align: right;">44847</td>
+<td style="text-align: right;">2292</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">23031</td>
+<td style="text-align: left;">York</td>
+<td style="text-align: right;">68932</td>
+<td style="text-align: right;">2239</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">23011</td>
+<td style="text-align: left;">Kennebec</td>
+<td style="text-align: right;">55368</td>
+<td style="text-align: right;">2112</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">23001</td>
+<td style="text-align: left;">Androscoggin</td>
+<td style="text-align: right;">55002</td>
+<td style="text-align: right;">2003</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">23019</td>
+<td style="text-align: left;">Penobscot</td>
+<td style="text-align: right;">52128</td>
+<td style="text-align: right;">1836</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">23005</td>
+<td style="text-align: left;">Cumberland</td>
+<td style="text-align: right;">76014</td>
+<td style="text-align: right;">1563</td>
+</tr>
+</tbody>
+</table>
+
+
+</div>
+</div>
+</div>
+<div class="task">
+<p>Create a dot plot of Maine’s county household incomes.</p>
+</div>
+<div class="cell page-columns page-full">
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>RplotterPkg<span class="sc">::</span><span class="fu">create_scatter_plot</span>(</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">df =</span> me_income_dt,</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_x =</span> <span class="st">"estimate"</span>,</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_y =</span> <span class="st">"NAME"</span>,</span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">title =</span> <span class="st">"Median Household Income Estimates"</span>,</span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">subtitle =</span> <span class="st">"Counties in Maine from ACS 2016-2020 Survey"</span>,</span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">pts_fill =</span> <span class="st">"#12891b"</span>,</span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">pts_size =</span> <span class="fl">5.0</span>,</span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_title =</span> <span class="st">"ACS estimate"</span>,</span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_labels =</span> <span class="cf">function</span>(x) <span class="fu">paste0</span>(<span class="st">"$"</span>, <span class="fu">prettyNum</span>(x, <span class="at">big.mark =</span> <span class="st">","</span>, <span class="at">scientific =</span> F)),</span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">rot_y_tic_label =</span> <span class="cn">TRUE</span></span>
+<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+
+<div class="no-row-height column-margin column-container"><div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="4_exploring_census_visualization_files/figure-html/unnamed-chunk-27-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Figure 4.10: A dot plot of median household income by county in Maine</figcaption>
+</figure>
+</div>
+</div></div></div>
+</section>
+<section id="using-error-bars-for-margins-of-error" class="level3 page-columns page-full">
+<h3 class="anchored" data-anchor-id="using-error-bars-for-margins-of-error">4.3.2 Using error bars for margins of error</h3>
+<div class="task">
+<p>Rank the margin of error values for the household incomes in <code>me_income_dt</code>.</p>
+</div>
+<p>Reorder <code>me_income_dt</code> by descending “moe” values:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>moe_ranked_dt <span class="ot">&lt;-</span> me_income_dt[<span class="fu">order</span>(<span class="sc">-</span>moe)] <span class="sc">%&gt;%</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>.[, variable <span class="sc">:</span><span class="er">=</span> <span class="st">"hhincome"</span>] <span class="sc">%&gt;%</span></span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>.[, .(GEOID,NAME,variable,estimate,moe)]  </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<table data-quarto-postprocess="true" class="table table-sm table-striped small">
+<caption>Table 4.3: Margins of error in Maine</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;" data-quarto-table-cell-role="th">GEOID</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">NAME</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">variable</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">estimate</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">moe</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">23023</td>
+<td style="text-align: left;">Sagadahoc</td>
+<td style="text-align: left;">hhincome</td>
+<td style="text-align: right;">68039</td>
+<td style="text-align: right;">4616</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">23015</td>
+<td style="text-align: left;">Lincoln</td>
+<td style="text-align: left;">hhincome</td>
+<td style="text-align: right;">58125</td>
+<td style="text-align: right;">3974</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">23027</td>
+<td style="text-align: left;">Waldo</td>
+<td style="text-align: left;">hhincome</td>
+<td style="text-align: right;">58034</td>
+<td style="text-align: right;">3482</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">23007</td>
+<td style="text-align: left;">Franklin</td>
+<td style="text-align: left;">hhincome</td>
+<td style="text-align: right;">51630</td>
+<td style="text-align: right;">2948</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">23021</td>
+<td style="text-align: left;">Piscataquis</td>
+<td style="text-align: left;">hhincome</td>
+<td style="text-align: right;">42083</td>
+<td style="text-align: right;">2883</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">23025</td>
+<td style="text-align: left;">Somerset</td>
+<td style="text-align: left;">hhincome</td>
+<td style="text-align: right;">45382</td>
+<td style="text-align: right;">2694</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">23009</td>
+<td style="text-align: left;">Hancock</td>
+<td style="text-align: left;">hhincome</td>
+<td style="text-align: right;">58345</td>
+<td style="text-align: right;">2593</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">23013</td>
+<td style="text-align: left;">Knox</td>
+<td style="text-align: left;">hhincome</td>
+<td style="text-align: right;">57794</td>
+<td style="text-align: right;">2528</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">23017</td>
+<td style="text-align: left;">Oxford</td>
+<td style="text-align: left;">hhincome</td>
+<td style="text-align: right;">49761</td>
+<td style="text-align: right;">2380</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">23003</td>
+<td style="text-align: left;">Aroostook</td>
+<td style="text-align: left;">hhincome</td>
+<td style="text-align: right;">43791</td>
+<td style="text-align: right;">2306</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">23029</td>
+<td style="text-align: left;">Washington</td>
+<td style="text-align: left;">hhincome</td>
+<td style="text-align: right;">44847</td>
+<td style="text-align: right;">2292</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">23031</td>
+<td style="text-align: left;">York</td>
+<td style="text-align: left;">hhincome</td>
+<td style="text-align: right;">68932</td>
+<td style="text-align: right;">2239</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">23011</td>
+<td style="text-align: left;">Kennebec</td>
+<td style="text-align: left;">hhincome</td>
+<td style="text-align: right;">55368</td>
+<td style="text-align: right;">2112</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">23001</td>
+<td style="text-align: left;">Androscoggin</td>
+<td style="text-align: left;">hhincome</td>
+<td style="text-align: right;">55002</td>
+<td style="text-align: right;">2003</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">23019</td>
+<td style="text-align: left;">Penobscot</td>
+<td style="text-align: left;">hhincome</td>
+<td style="text-align: right;">52128</td>
+<td style="text-align: right;">1836</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">23005</td>
+<td style="text-align: left;">Cumberland</td>
+<td style="text-align: left;">hhincome</td>
+<td style="text-align: right;">76014</td>
+<td style="text-align: right;">1563</td>
+</tr>
+</tbody>
+</table>
+
+
+</div>
+</div>
+</div>
+<blockquote class="blockquote">
+<p>…margins of error around the estimated median household incomes vary from a low of $1563 (Cumberland County with population of 303069) to a high of $4616 (Sagadahoc County with a population of 36699)</p>
+</blockquote>
+<div class="task">
+<p>Repeat the above dot plot of household income with error bars around each point showing the degree of uncertainty based on the “moe” values.</p>
+</div>
+<div class="cell page-columns page-full">
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>RplotterPkg<span class="sc">::</span><span class="fu">create_scatter_plot</span>(</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">df =</span> me_income_dt,</span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_x =</span> <span class="st">"estimate"</span>,</span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_y =</span> <span class="st">"NAME"</span>,</span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">title =</span> <span class="st">"Median Household Income Estimates"</span>,</span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">subtitle =</span> <span class="st">"Counties in Maine from ACS 2016-2020 Survey"</span>,</span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">pts_fill =</span> <span class="st">"#12891b"</span>,</span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">pts_size =</span> <span class="fl">5.0</span>,</span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_title =</span> <span class="st">"ACS estimate"</span>,</span>
+<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_labels =</span> <span class="cf">function</span>(x) <span class="fu">paste0</span>(<span class="st">"$"</span>, <span class="fu">prettyNum</span>(x, <span class="at">big.mark =</span> <span class="st">","</span>, <span class="at">scientific =</span> F)),</span>
+<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">rot_y_tic_label =</span> <span class="cn">TRUE</span></span>
+<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a>) <span class="sc">+</span> <span class="fu">geom_errorbarh</span>(<span class="fu">aes</span>(<span class="at">xmin =</span> estimate <span class="sc">-</span> moe, <span class="at">xmax =</span> estimate <span class="sc">+</span> moe))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+
+<div class="no-row-height column-margin column-container"><div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="4_exploring_census_visualization_files/figure-html/unnamed-chunk-30-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Figure 4.11: Median household income by county in Maine with error bars shown</figcaption>
+</figure>
+</div>
+</div></div></div>
+</section>
+</section>
+<section id="visualizing-acs-estimates-over-time" class="level2 page-columns page-full">
+<h2 class="anchored" data-anchor-id="visualizing-acs-estimates-over-time">4.4 Visualizing ACS estimates over time</h2>
+<div class="task">
+<p>As a time-series visualization example, obtain the median home value (“B25077_001E”) for Deschutes County, Oregon back to 2005 through 2019.</p>
+</div>
+<p>Get the data using <code>RcensusPkg::get_multi_vintage_data()</code>:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>deschutes_fips <span class="ot">&lt;-</span> usmap<span class="sc">::</span><span class="fu">fips</span>(<span class="st">"OR"</span>,<span class="st">"Deschutes"</span>)</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>deschutes_val_dt <span class="ot">&lt;-</span> RcensusPkg<span class="sc">::</span><span class="fu">get_multi_vintage_data</span>(</span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">dataset =</span> <span class="st">"acs/acs1"</span>,</span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">vintage_v =</span> <span class="dv">2005</span><span class="sc">:</span><span class="dv">2019</span>,</span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">vars =</span> <span class="fu">c</span>(<span class="st">"B25077_001E"</span>, <span class="st">"B25077_001M"</span>),</span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">region =</span> <span class="fu">paste0</span>(<span class="st">"county:"</span>, <span class="fu">substr</span>(deschutes_fips,<span class="dv">3</span>,<span class="dv">5</span>)),</span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">regionin =</span> <span class="fu">paste0</span>(<span class="st">"state:"</span>, <span class="fu">substr</span>(deschutes_fips,<span class="dv">1</span>,<span class="dv">2</span>))) <span class="sc">%&gt;%</span></span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>data.table<span class="sc">::</span><span class="fu">setnames</span>(., <span class="at">old =</span> <span class="fu">c</span>(<span class="st">"B25077_001E"</span>, <span class="st">"B25077_001M"</span>, <span class="st">"vintage"</span>), <span class="at">new =</span> <span class="fu">c</span>(<span class="st">"estimate"</span>, <span class="st">"moe"</span>, <span class="st">"year"</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>.[, <span class="st">`</span><span class="at">:=</span><span class="st">`</span>(<span class="at">estimate =</span> <span class="fu">as.numeric</span>(estimate), <span class="at">moe =</span> <span class="fu">as.numeric</span>(moe))] <span class="sc">%&gt;%</span> </span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a>.[, variable <span class="sc">:</span><span class="er">=</span> <span class="st">"B25077_001"</span>] <span class="sc">%&gt;%</span></span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a>.[, <span class="st">`</span><span class="at">:=</span><span class="st">`</span>(<span class="at">ci_lwr =</span> estimate <span class="sc">-</span> moe, <span class="at">ci_upr =</span> estimate <span class="sc">+</span> moe)] <span class="sc">%&gt;%</span> </span>
+<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a>.[, .(year,GEOID,NAME,variable,estimate,moe,ci_lwr,ci_upr)]   </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<table data-quarto-postprocess="true" class="table table-sm table-striped small">
+<caption>Table 4.4: Time series of median home values in Deschutes County, OR</caption>
+<thead>
+<tr class="header">
+<th style="text-align: right;" data-quarto-table-cell-role="th">year</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">GEOID</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">NAME</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">variable</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">estimate</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">moe</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">ci_lwr</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">ci_upr</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">2005</td>
+<td style="text-align: left;">41017</td>
+<td style="text-align: left;">Deschutes County, Oregon</td>
+<td style="text-align: left;">B25077_001</td>
+<td style="text-align: right;">236100</td>
+<td style="text-align: right;">13444</td>
+<td style="text-align: right;">222656</td>
+<td style="text-align: right;">249544</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">2006</td>
+<td style="text-align: left;">41017</td>
+<td style="text-align: left;">Deschutes County, Oregon</td>
+<td style="text-align: left;">B25077_001</td>
+<td style="text-align: right;">336600</td>
+<td style="text-align: right;">11101</td>
+<td style="text-align: right;">325499</td>
+<td style="text-align: right;">347701</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">2007</td>
+<td style="text-align: left;">41017</td>
+<td style="text-align: left;">Deschutes County, Oregon</td>
+<td style="text-align: left;">B25077_001</td>
+<td style="text-align: right;">356700</td>
+<td style="text-align: right;">16765</td>
+<td style="text-align: right;">339935</td>
+<td style="text-align: right;">373465</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">2008</td>
+<td style="text-align: left;">41017</td>
+<td style="text-align: left;">Deschutes County, Oregon</td>
+<td style="text-align: left;">B25077_001</td>
+<td style="text-align: right;">331600</td>
+<td style="text-align: right;">17104</td>
+<td style="text-align: right;">314496</td>
+<td style="text-align: right;">348704</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">2009</td>
+<td style="text-align: left;">41017</td>
+<td style="text-align: left;">Deschutes County, Oregon</td>
+<td style="text-align: left;">B25077_001</td>
+<td style="text-align: right;">284300</td>
+<td style="text-align: right;">12652</td>
+<td style="text-align: right;">271648</td>
+<td style="text-align: right;">296952</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">2010</td>
+<td style="text-align: left;">41017</td>
+<td style="text-align: left;">Deschutes County, Oregon</td>
+<td style="text-align: left;">B25077_001</td>
+<td style="text-align: right;">260700</td>
+<td style="text-align: right;">18197</td>
+<td style="text-align: right;">242503</td>
+<td style="text-align: right;">278897</td>
+</tr>
+</tbody>
+</table>
+
+
+</div>
+</div>
+</div>
+<div class="task">
+<p>Draw the Deschutes County home value line chart.</p>
+</div>
+<div class="cell page-columns page-full">
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>RplotterPkg<span class="sc">::</span><span class="fu">create_scatter_plot</span>(</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">df =</span> deschutes_val_dt,</span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_x =</span> <span class="st">"year"</span>,</span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_y =</span> <span class="st">"estimate"</span>,</span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_CI_lwr =</span> <span class="st">"ci_lwr"</span>,</span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_CI_upr =</span> <span class="st">"ci_upr"</span>,</span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_title =</span> <span class="st">"Year"</span>,</span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">y_title =</span> <span class="st">"ACS estimate"</span>,</span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">rot_y_tic_label =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">y_labels =</span> scales<span class="sc">::</span>dollar,</span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">connect =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">pts_size =</span> <span class="fl">3.0</span>,</span>
+<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">pts_fill =</span> <span class="st">"#b136b9"</span>,</span>
+<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_major_breaks =</span> <span class="dv">2005</span><span class="sc">:</span><span class="dv">2019</span>,</span>
+<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_minor_breaks =</span> <span class="cn">NULL</span>,</span>
+<span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+
+<div class="no-row-height column-margin column-container"><div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="4_exploring_census_visualization_files/figure-html/unnamed-chunk-33-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Figure 4.12: A time series chart of median home values in Deschutes County, OR</figcaption>
+</figure>
+</div>
+</div></div></div>
+<div class="task">
+<p>Draw the Deschutes County home value line chart with error ranges.</p>
+</div>
+<div class="cell page-columns page-full">
+<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>RplotterPkg<span class="sc">::</span><span class="fu">create_scatter_plot</span>(</span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">df =</span> deschutes_val_dt,</span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_x =</span> <span class="st">"year"</span>,</span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_y =</span> <span class="st">"estimate"</span>,</span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_CI_lwr =</span> <span class="st">"ci_lwr"</span>,</span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_CI_upr =</span> <span class="st">"ci_upr"</span>,</span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">subtitle =</span> <span class="st">"Median Home Values in Deschutes County, Oregon"</span>,</span>
+<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_title =</span> <span class="st">"Year"</span>,</span>
+<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">y_title =</span> <span class="st">"ACS estimate"</span>,</span>
+<span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">rot_y_tic_label =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">y_labels =</span> scales<span class="sc">::</span>dollar,</span>
+<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">connect =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb27-13"><a href="#cb27-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">pts_size =</span> <span class="fl">3.0</span>,</span>
+<span id="cb27-14"><a href="#cb27-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">pts_fill =</span> <span class="st">"#b136b9"</span>,</span>
+<span id="cb27-15"><a href="#cb27-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_major_breaks =</span> <span class="dv">2005</span><span class="sc">:</span><span class="dv">2019</span>,</span>
+<span id="cb27-16"><a href="#cb27-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_minor_breaks =</span> <span class="cn">NULL</span>,</span>
+<span id="cb27-17"><a href="#cb27-17" aria-hidden="true" tabindex="-1"></a>  <span class="at">CI_show_ribbon =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb27-18"><a href="#cb27-18" aria-hidden="true" tabindex="-1"></a>  <span class="at">CI_ribbon_color =</span> <span class="st">"navy"</span>,</span>
+<span id="cb27-19"><a href="#cb27-19" aria-hidden="true" tabindex="-1"></a>  <span class="at">CI_show_line =</span> <span class="cn">FALSE</span></span>
+<span id="cb27-20"><a href="#cb27-20" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+
+<div class="no-row-height column-margin column-container"><div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="4_exploring_census_visualization_files/figure-html/unnamed-chunk-34-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Figure 4.13: The Deschutes County home value line chart with error ranges shown</figcaption>
+</figure>
+</div>
+</div></div></div>
+</section>
+<section id="exploring-age-and-sex-structure-with-population-pyramids" class="level2 page-columns page-full">
+<h2 class="anchored" data-anchor-id="exploring-age-and-sex-structure-with-population-pyramids">4.5 Exploring age and sex structure with population pyramids</h2>
+<section id="preparing-data-from-the-population-estimates-api" class="level3 page-columns page-full">
+<h3 class="anchored" data-anchor-id="preparing-data-from-the-population-estimates-api">4.5.1 Preparing data from the Population Estimates API</h3>
+<p>The Population Estimates Program(PEP) offers a dataset named “pep/charagegroups” that has characteristic breakdowns for a number of variables.</p>
+<div class="task">
+<p>Review the variables offered in “pep/charagegroups” for the vintage 2019.</p>
+</div>
+<p>Call <code>RcensusPkg::get_variable_names()</code> for dataset “pep/charagegroups”:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>pep_char_vars_dt <span class="ot">&lt;-</span> RcensusPkg<span class="sc">::</span><span class="fu">get_variable_names</span>(</span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">dataset =</span> <span class="st">"pep/charagegroups"</span>,</span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">vintage =</span> <span class="dv">2019</span></span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<table data-quarto-postprocess="true" class="table table-sm table-striped small">
+<caption>Table 4.5a Variables offered in ‘pep/charagegroups’, pep/charagegroups, 2019</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;" data-quarto-table-cell-role="th">name</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">label</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">concept</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">required</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">predicateType</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">AGEGROUP</td>
+<td style="text-align: left;">Age Group</td>
+<td style="text-align: left;">NA</td>
+<td style="text-align: left;">default displayed</td>
+<td style="text-align: left;">int</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">HISP</td>
+<td style="text-align: left;">Hispanic Origin</td>
+<td style="text-align: left;">NA</td>
+<td style="text-align: left;">default displayed</td>
+<td style="text-align: left;">int</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">NATION</td>
+<td style="text-align: left;">Geography</td>
+<td style="text-align: left;">NA</td>
+<td style="text-align: left;">NA</td>
+<td style="text-align: left;">NA</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">POP</td>
+<td style="text-align: left;">Population</td>
+<td style="text-align: left;">NA</td>
+<td style="text-align: left;">NA</td>
+<td style="text-align: left;">NA</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">RACE</td>
+<td style="text-align: left;">Race</td>
+<td style="text-align: left;">NA</td>
+<td style="text-align: left;">default displayed</td>
+<td style="text-align: left;">int</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">SEX</td>
+<td style="text-align: left;">Sex</td>
+<td style="text-align: left;">NA</td>
+<td style="text-align: left;">default displayed</td>
+<td style="text-align: left;">int</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">STATE</td>
+<td style="text-align: left;">Geography</td>
+<td style="text-align: left;">NA</td>
+<td style="text-align: left;">NA</td>
+<td style="text-align: left;">NA</td>
+</tr>
+</tbody>
+</table>
+
+
+</div>
+</div>
+</div>
+<p>Both the “SEX” and “AGEGROUP” are categorical variables with integer values corresponding to string labels.</p>
+<div class="task">
+<p>Retrieve the integer value/label pairs of “SEX” and “AGEGROUP”.</p>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>sex_cat_dt <span class="ot">&lt;-</span> RcensusPkg<span class="sc">::</span><span class="fu">get_category_strings</span>(<span class="at">name =</span> <span class="st">"sex"</span>)</span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>agegroup_cat_dt <span class="ot">&lt;-</span> RcensusPkg<span class="sc">::</span><span class="fu">get_category_strings</span>(<span class="at">name =</span> <span class="st">"agegroup"</span>, <span class="at">start_idx =</span> <span class="dv">1</span>, <span class="at">end_idx =</span> <span class="dv">19</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="task">
+<p>Show the “AGEGROUP” values and labels”.</p>
+</div>
+<div class="page-columns page-full"><p></p><div class="no-row-height column-margin column-container"><span class="">Note that there are a total of 19 value/label pairs for ‘AGEGROUP’.</span></div></div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<table data-quarto-postprocess="true" class="table table-sm table-striped small">
+<caption>Table 4.5b: Integer value/label pairs for catagory variable ‘AGEGROUP’</caption>
+<thead>
+<tr class="header">
+<th style="text-align: right;" data-quarto-table-cell-role="th">val</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">agegroup_label</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">0</td>
+<td style="text-align: left;">All ages</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">1</td>
+<td style="text-align: left;">Age 0 to 4 years</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">2</td>
+<td style="text-align: left;">Age 5 to 9 years</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">3</td>
+<td style="text-align: left;">Age 10 to 14 years</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">4</td>
+<td style="text-align: left;">Age 15 to 19 years</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">5</td>
+<td style="text-align: left;">Age 20 to 24 years</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">6</td>
+<td style="text-align: left;">Age 25 to 29 years</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">7</td>
+<td style="text-align: left;">Age 30 to 34 years</td>
+</tr>
+</tbody>
+</table>
+
+
+</div>
+</div>
+</div>
+<div class="task">
+<p>Show the 3 “SEX” category value/label pairs.</p>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<table data-quarto-postprocess="true" class="table table-sm table-striped small">
+<caption>Table 4.5c: Integer value/label pairs for catagory variable ‘SEX’</caption>
+<thead>
+<tr class="header">
+<th style="text-align: right;" data-quarto-table-cell-role="th">val</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">sex_label</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">0</td>
+<td style="text-align: left;">Both Sexes</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">1</td>
+<td style="text-align: left;">Male</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">2</td>
+<td style="text-align: left;">Female</td>
+</tr>
+</tbody>
+</table>
+
+
+</div>
+</div>
+</div>
+<p>The Census Bureau provides a key to the meaning of these and other PEP related categorical variables <a href="https://www.census.gov/data/developers/data-sets/popest-popproj/popest/popest-vars.Vintage_2019.html">here</a>.</p>
+<div class="task">
+<p>Get the “SEX” and “AGEGROUP” variables from the “pep/charagegroups” dataset for the state of Utah, 2019.</p>
+</div>
+<p>Call <code>RcensusPkg::get_vintage_data()</code>: We will use data.tables <code>sex_cat_dt</code> and <code>agegroup_cat_dt</code> from above to re-value the resultant “SEX” and “AGEGROUP” columns.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>ut_fips <span class="ot">&lt;-</span> usmap<span class="sc">::</span><span class="fu">fips</span>(<span class="st">"UT"</span>)</span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>ut_dt <span class="ot">&lt;-</span> RcensusPkg<span class="sc">::</span><span class="fu">get_vintage_data</span>(</span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">dataset =</span> <span class="st">"pep/charagegroups"</span>,</span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">vintage =</span> <span class="dv">2019</span>,</span>
+<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">vars =</span> <span class="fu">c</span>(<span class="st">"SEX"</span>, <span class="st">"AGEGROUP"</span>, <span class="st">"POP"</span>),</span>
+<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">region =</span> <span class="fu">paste0</span>(<span class="st">"state:"</span>,ut_fips)) <span class="sc">%&gt;%</span></span>
+<span id="cb30-8"><a href="#cb30-8" aria-hidden="true" tabindex="-1"></a>.[, <span class="st">`</span><span class="at">:=</span><span class="st">`</span>(<span class="at">SEX =</span> <span class="fu">as.numeric</span>(SEX), <span class="at">AGEGROUP =</span> <span class="fu">as.numeric</span>(AGEGROUP))] <span class="sc">%&gt;%</span> </span>
+<span id="cb30-9"><a href="#cb30-9" aria-hidden="true" tabindex="-1"></a>.[, SEX <span class="sc">:</span><span class="er">=</span> sex_cat_dt<span class="sc">$</span>sex_label[SEX<span class="sc">+</span><span class="dv">1</span>]] <span class="sc">%&gt;%</span>  </span>
+<span id="cb30-10"><a href="#cb30-10" aria-hidden="true" tabindex="-1"></a>.[, AGEGROUP <span class="sc">:</span><span class="er">=</span> agegroup_cat_dt<span class="sc">$</span>agegroup_label[AGEGROUP<span class="sc">+</span><span class="dv">1</span>]] <span class="sc">%&gt;%</span></span>
+<span id="cb30-11"><a href="#cb30-11" aria-hidden="true" tabindex="-1"></a>data.table<span class="sc">::</span><span class="fu">setnames</span>(., <span class="at">old =</span> <span class="st">"POP"</span>, <span class="at">new =</span> <span class="st">"value"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb30-12"><a href="#cb30-12" aria-hidden="true" tabindex="-1"></a>.[, .(GEOID,NAME,value,SEX,AGEGROUP)] <span class="sc">%&gt;%</span></span>
+<span id="cb30-13"><a href="#cb30-13" aria-hidden="true" tabindex="-1"></a><span class="fu">na.omit</span>(., <span class="at">cols =</span> <span class="st">"AGEGROUP"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb30-14"><a href="#cb30-14" aria-hidden="true" tabindex="-1"></a>data.table<span class="sc">::</span><span class="fu">setorderv</span>(., <span class="at">cols =</span> <span class="st">"SEX"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<table data-quarto-postprocess="true" class="table table-sm table-striped small">
+<caption>Table 4.5: Age and sex data for Utah from the PEP API</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;" data-quarto-table-cell-role="th">GEOID</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">NAME</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">value</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">SEX</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">AGEGROUP</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">49</td>
+<td style="text-align: left;">Utah</td>
+<td style="text-align: left;">3205958</td>
+<td style="text-align: left;">Both Sexes</td>
+<td style="text-align: left;">All ages</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">49</td>
+<td style="text-align: left;">Utah</td>
+<td style="text-align: left;">247803</td>
+<td style="text-align: left;">Both Sexes</td>
+<td style="text-align: left;">Age 0 to 4 years</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">49</td>
+<td style="text-align: left;">Utah</td>
+<td style="text-align: left;">258976</td>
+<td style="text-align: left;">Both Sexes</td>
+<td style="text-align: left;">Age 5 to 9 years</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">49</td>
+<td style="text-align: left;">Utah</td>
+<td style="text-align: left;">267985</td>
+<td style="text-align: left;">Both Sexes</td>
+<td style="text-align: left;">Age 10 to 14 years</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">49</td>
+<td style="text-align: left;">Utah</td>
+<td style="text-align: left;">253847</td>
+<td style="text-align: left;">Both Sexes</td>
+<td style="text-align: left;">Age 15 to 19 years</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">49</td>
+<td style="text-align: left;">Utah</td>
+<td style="text-align: left;">264652</td>
+<td style="text-align: left;">Both Sexes</td>
+<td style="text-align: left;">Age 20 to 24 years</td>
+</tr>
+</tbody>
+</table>
+
+
+</div>
+</div>
+</div>
+<div class="task">
+<p>Prepare data frame <code>ut_dt</code> for plotting the population pyramid by removing rows with “SEX” equal to “Both Sexes” and “AGEGROUP” equal to “All ages”. Also set the “value” values to negative for rows with “AGEGROUP” equal to “Male”.</p>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>ut_pyramid_plot_dt <span class="ot">&lt;-</span> ut_dt <span class="sc">%&gt;%</span></span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>  .[SEX <span class="sc">!=</span> <span class="st">"Both Sexes"</span>] <span class="sc">%&gt;%</span> <span class="co"># remove rows with SEX == "Both sexes"</span></span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>  .[AGEGROUP <span class="sc">!=</span> <span class="st">"All ages"</span>] <span class="sc">%&gt;%</span> <span class="co"># remove rows with AGEGROUP == "All ages"</span></span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>  .[, value <span class="sc">:</span><span class="er">=</span> <span class="fu">as.numeric</span>(value)] <span class="sc">%&gt;%</span> <span class="co"># set value as numeric</span></span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>  .[, value <span class="sc">:</span><span class="er">=</span> <span class="fu">ifelse</span>(SEX <span class="sc">==</span> <span class="st">"Male"</span>, <span class="sc">-</span>value, value)] <span class="sc">%&gt;%</span> <span class="co"># re-value 'value' based on SEX value</span></span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>  .[, AGEGROUP <span class="sc">:</span><span class="er">=</span> <span class="fu">ifelse</span>(AGEGROUP <span class="sc">==</span> <span class="st">"Age 5 to 9 years"</span>, <span class="st">"Age 05 to 9 years"</span>, AGEGROUP)] <span class="sc">%&gt;%</span> <span class="co"># for ordering</span></span>
+<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a>  .[, AGEGROUP <span class="sc">:</span><span class="er">=</span> stringr<span class="sc">::</span><span class="fu">str_remove_all</span>(AGEGROUP, <span class="st">"Age</span><span class="sc">\\</span><span class="st">s|</span><span class="sc">\\</span><span class="st">syears"</span>)] <span class="sc">%&gt;%</span> <span class="co"># shorten the AGEGROUP labels</span></span>
+<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a>  .[, AGEGROUP <span class="sc">:</span><span class="er">=</span> <span class="fu">as.factor</span>(AGEGROUP)] <span class="co"># make AGEGROUP a factor</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<table data-quarto-postprocess="true" class="table table-sm table-striped small">
+<caption>Table 4.6: Filtered and transformed Utah population data</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;" data-quarto-table-cell-role="th">GEOID</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">NAME</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">value</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">SEX</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">AGEGROUP</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">49</td>
+<td style="text-align: left;">Utah</td>
+<td style="text-align: right;">126108</td>
+<td style="text-align: left;">Female</td>
+<td style="text-align: left;">05 to 9</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">49</td>
+<td style="text-align: left;">Utah</td>
+<td style="text-align: right;">23039</td>
+<td style="text-align: left;">Female</td>
+<td style="text-align: left;">80 to 84</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">49</td>
+<td style="text-align: left;">Utah</td>
+<td style="text-align: right;">130045</td>
+<td style="text-align: left;">Female</td>
+<td style="text-align: left;">10 to 14</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">49</td>
+<td style="text-align: left;">Utah</td>
+<td style="text-align: right;">124535</td>
+<td style="text-align: left;">Female</td>
+<td style="text-align: left;">15 to 19</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">49</td>
+<td style="text-align: left;">Utah</td>
+<td style="text-align: right;">128846</td>
+<td style="text-align: left;">Female</td>
+<td style="text-align: left;">20 to 24</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">49</td>
+<td style="text-align: left;">Utah</td>
+<td style="text-align: right;">108654</td>
+<td style="text-align: left;">Female</td>
+<td style="text-align: left;">30 to 34</td>
+</tr>
+</tbody>
+</table>
+
+
+</div>
+</div>
+</div>
+</section>
+<section id="designing-and-styling-the-population-pyramid" class="level3">
+<h3 class="anchored" data-anchor-id="designing-and-styling-the-population-pyramid">4.5.2 Designing and styling the population pyramid</h3>
+<div class="task">
+<p>Use <code>RplotterPkg::create_bar_plot()</code> to create the population pyramid from <code>ut_pyramid_plot_dt</code> data.table.</p>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>pyramid_bar_plot <span class="ot">&lt;-</span> RplotterPkg<span class="sc">::</span><span class="fu">create_bar_plot</span>(</span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">df =</span> ut_pyramid_plot_dt,</span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_x =</span> <span class="st">"AGEGROUP"</span>,</span>
+<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_y =</span> <span class="st">"value"</span>,</span>
+<span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_fill =</span> <span class="st">"SEX"</span>,</span>
+<span id="cb32-6"><a href="#cb32-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">title =</span> <span class="st">"Population structure in Utah"</span>,</span>
+<span id="cb32-7"><a href="#cb32-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_title =</span> <span class="st">"2019 Census Bureau population estimate"</span>,</span>
+<span id="cb32-8"><a href="#cb32-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">y_title =</span> <span class="st">"Population Estimate"</span>,</span>
+<span id="cb32-9"><a href="#cb32-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">"Data source: US Census Bureau population estimates &amp; RcensusPkg"</span>,</span>
+<span id="cb32-10"><a href="#cb32-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">y_labels =</span> <span class="cf">function</span>(y) <span class="fu">paste0</span>(<span class="fu">abs</span>(y <span class="sc">/</span> <span class="dv">1000</span>), <span class="st">"k"</span>),</span>
+<span id="cb32-11"><a href="#cb32-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">bar_color =</span> <span class="st">"white"</span>,</span>
+<span id="cb32-12"><a href="#cb32-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">bar_lwd =</span> <span class="fl">0.5</span>,</span>
+<span id="cb32-13"><a href="#cb32-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">bar_width =</span> <span class="fl">0.95</span>,</span>
+<span id="cb32-14"><a href="#cb32-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">do_coord_flip =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb32-15"><a href="#cb32-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">rot_y_tic_label =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb32-16"><a href="#cb32-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">legend_key_width =</span> <span class="fl">0.75</span></span>
+<span id="cb32-17"><a href="#cb32-17" aria-hidden="true" tabindex="-1"></a>) <span class="sc">+</span> ggplot2<span class="sc">::</span><span class="fu">scale_fill_manual</span>(<span class="at">values =</span>  <span class="fu">c</span>(<span class="st">"Female"</span><span class="ot">=</span> <span class="st">"darkred"</span>, <span class="st">"Male"</span><span class="ot">=</span><span class="st">"navy"</span>))</span>
+<span id="cb32-18"><a href="#cb32-18" aria-hidden="true" tabindex="-1"></a>pyramid_bar_plot</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="4_exploring_census_visualization_files/figure-html/unnamed-chunk-44-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Figure 4.15: A formatted population pyramid of Utah</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="visualizing-group-wise-comparisons" class="level2 page-columns page-full">
+<h2 class="anchored" data-anchor-id="visualizing-group-wise-comparisons">4.6 Visualizing group-wise comparisons</h2>
+<div class="task">
+<p>Use multiple plots to compare groups of geographies. An example involves a comparison of median home values by Census tract for six counties in the Portland, Oregon area: Multnomah, which contains the city of Portland, and the suburban counties of Clackamas and Washington. Use the ACS 5-year survey 2020 data set (“acs/acs5”).</p>
+</div>
+<p>Get the fips numbers for six counties:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>or_fips <span class="ot">&lt;-</span> usmap<span class="sc">::</span><span class="fu">fips</span>(<span class="at">state =</span> <span class="st">"OR"</span>)</span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>multnomah_fips <span class="ot">&lt;-</span> <span class="fu">substr</span>(usmap<span class="sc">::</span><span class="fu">fips</span>(<span class="at">state =</span> <span class="st">"OR"</span>, <span class="at">county =</span> <span class="st">"Multnomah"</span>),<span class="dv">3</span>,<span class="dv">5</span>)</span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>clackamas_fips <span class="ot">&lt;-</span> <span class="fu">substr</span>(usmap<span class="sc">::</span><span class="fu">fips</span>(<span class="at">state =</span> <span class="st">"OR"</span>, <span class="at">county =</span> <span class="st">"Clackamas"</span>),<span class="dv">3</span>,<span class="dv">5</span>)</span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a>washington_fips <span class="ot">&lt;-</span><span class="fu">substr</span>(usmap<span class="sc">::</span><span class="fu">fips</span>(<span class="at">state =</span> <span class="st">"OR"</span>, <span class="at">county =</span> <span class="st">"Washington"</span>),<span class="dv">3</span>,<span class="dv">5</span>)</span>
+<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a>yamhill_fips <span class="ot">&lt;-</span> <span class="fu">substr</span>(usmap<span class="sc">::</span><span class="fu">fips</span>(<span class="at">state =</span> <span class="st">"OR"</span>, <span class="at">county =</span> <span class="st">"Yamhill"</span>),<span class="dv">3</span>,<span class="dv">5</span>)</span>
+<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a>marion_fips <span class="ot">&lt;-</span><span class="fu">substr</span>(usmap<span class="sc">::</span><span class="fu">fips</span>(<span class="at">state =</span> <span class="st">"OR"</span>, <span class="at">county =</span> <span class="st">"Marion"</span>),<span class="dv">3</span>,<span class="dv">5</span>)</span>
+<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a>columbia_fips <span class="ot">&lt;-</span><span class="fu">substr</span>(usmap<span class="sc">::</span><span class="fu">fips</span>(<span class="at">state =</span> <span class="st">"OR"</span>, <span class="at">county =</span> <span class="st">"Columbia"</span>),<span class="dv">3</span>,<span class="dv">5</span>)</span>
+<span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-9"><a href="#cb33-9" aria-hidden="true" tabindex="-1"></a>tract_fips <span class="ot">&lt;-</span> <span class="fu">c</span>(multnomah_fips, clackamas_fips, washington_fips, yamhill_fips, marion_fips, columbia_fips)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Get all the tract data into one data.table:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>home_vals_dt <span class="ot">&lt;-</span> <span class="cn">NULL</span></span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(a_fips <span class="cf">in</span> tract_fips){</span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>  tracts_vals_dt <span class="ot">&lt;-</span> RcensusPkg<span class="sc">::</span><span class="fu">get_vintage_data</span>(</span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">dataset =</span> <span class="st">"acs/acs5"</span>,</span>
+<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">vintage =</span> <span class="dv">2020</span>,</span>
+<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">vars =</span> <span class="fu">c</span>(<span class="st">"B25077_001E"</span>, <span class="st">"B25077_001M"</span>),</span>
+<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">region =</span> <span class="st">"tract:*"</span>,</span>
+<span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">regionin =</span> <span class="fu">paste0</span>(<span class="st">"state:"</span>,or_fips,<span class="st">"+county:"</span>,a_fips)</span>
+<span id="cb34-9"><a href="#cb34-9" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb34-10"><a href="#cb34-10" aria-hidden="true" tabindex="-1"></a>  home_vals_dt <span class="ot">&lt;-</span> <span class="fu">rbind</span>(home_vals_dt, tracts_vals_dt)</span>
+<span id="cb34-11"><a href="#cb34-11" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb34-12"><a href="#cb34-12" aria-hidden="true" tabindex="-1"></a>home_vals_dt <span class="ot">&lt;-</span> home_vals_dt <span class="sc">%&gt;%</span></span>
+<span id="cb34-13"><a href="#cb34-13" aria-hidden="true" tabindex="-1"></a>data.table<span class="sc">::</span><span class="fu">setnames</span>(., <span class="at">old =</span> <span class="fu">c</span>(<span class="st">"B25077_001E"</span>, <span class="st">"B25077_001M"</span>), <span class="at">new =</span> <span class="fu">c</span>(<span class="st">"estimate"</span>,<span class="st">"moe"</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb34-14"><a href="#cb34-14" aria-hidden="true" tabindex="-1"></a>.[, variable <span class="sc">:</span><span class="er">=</span> <span class="st">"B25077_001"</span>] <span class="sc">%&gt;%</span></span>
+<span id="cb34-15"><a href="#cb34-15" aria-hidden="true" tabindex="-1"></a>.[, <span class="st">`</span><span class="at">:=</span><span class="st">`</span>(<span class="at">estimate =</span> <span class="fu">as.numeric</span>(estimate), <span class="at">moe =</span> <span class="fu">as.numeric</span>(moe))] <span class="sc">%&gt;%</span> </span>
+<span id="cb34-16"><a href="#cb34-16" aria-hidden="true" tabindex="-1"></a>.[, .(GEOID,NAME,variable,estimate,moe)] <span class="sc">%&gt;%</span></span>
+<span id="cb34-17"><a href="#cb34-17" aria-hidden="true" tabindex="-1"></a>data.table<span class="sc">::</span><span class="fu">setorderv</span>(.,<span class="at">cols =</span> <span class="st">"GEOID"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<table data-quarto-postprocess="true" class="table table-sm table-striped small">
+<caption>Table 4.7: Median home values by Census tract in the Portland</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;" data-quarto-table-cell-role="th">GEOID</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">NAME</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">variable</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">estimate</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">moe</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">41005020101</td>
+<td style="text-align: left;">Census Tract 201.01, Clackamas County, Oregon</td>
+<td style="text-align: left;">B25077_001</td>
+<td style="text-align: right;">666700</td>
+<td style="text-align: right;">131453</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">41005020102</td>
+<td style="text-align: left;">Census Tract 201.02, Clackamas County, Oregon</td>
+<td style="text-align: left;">B25077_001</td>
+<td style="text-align: right;">909000</td>
+<td style="text-align: right;">130787</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">41005020201</td>
+<td style="text-align: left;">Census Tract 202.01, Clackamas County, Oregon</td>
+<td style="text-align: left;">B25077_001</td>
+<td style="text-align: right;">897400</td>
+<td style="text-align: right;">97893</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">41005020202</td>
+<td style="text-align: left;">Census Tract 202.02, Clackamas County, Oregon</td>
+<td style="text-align: left;">B25077_001</td>
+<td style="text-align: right;">821200</td>
+<td style="text-align: right;">93103</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">41005020302</td>
+<td style="text-align: left;">Census Tract 203.02, Clackamas County, Oregon</td>
+<td style="text-align: left;">B25077_001</td>
+<td style="text-align: right;">565600</td>
+<td style="text-align: right;">32555</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">41005020303</td>
+<td style="text-align: left;">Census Tract 203.03, Clackamas County, Oregon</td>
+<td style="text-align: left;">B25077_001</td>
+<td style="text-align: right;">560000</td>
+<td style="text-align: right;">34669</td>
+</tr>
+</tbody>
+</table>
+
+
+</div>
+</div>
+</div>
+<p>Split the “NAME” column into separate columns of “tract”, “county”, “state” based on the embedded comma:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a>home_vals_dt <span class="ot">&lt;-</span> home_vals_dt <span class="sc">%&gt;%</span></span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>  .[, <span class="fu">c</span>(<span class="st">"tract"</span>, <span class="st">"county"</span>, <span class="st">"state"</span>) <span class="sc">:</span><span class="er">=</span> <span class="fu">tstrsplit</span>(NAME, <span class="st">","</span>, <span class="at">fixed =</span> <span class="cn">TRUE</span>)] <span class="sc">%&gt;%</span>   <span class="co"># split NAME string into tract,county,state</span></span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a>  .[, county <span class="sc">:</span><span class="er">=</span> stringr<span class="sc">::</span><span class="fu">str_remove</span>(county, <span class="st">" County"</span>)] <span class="sc">%&gt;%</span></span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>  .[estimate <span class="sc">&gt;</span> <span class="dv">0</span> <span class="sc">&amp;</span> moe <span class="sc">&gt;</span> <span class="dv">0</span>,] <span class="sc">%&gt;%</span>  <span class="co"># filter rows for only positive values</span></span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a>  .[, county <span class="sc">:</span><span class="er">=</span> <span class="fu">factor</span>(county)]  <span class="sc">%&gt;%</span> <span class="co"># county as a factor</span></span>
+<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a>  .[, .(GEOID,tract,county,state,variable,estimate,moe)]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<table data-quarto-postprocess="true" class="table table-sm table-striped small">
+<caption>Table 4.8: Data with NAME column split by comma</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;" data-quarto-table-cell-role="th">GEOID</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">tract</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">county</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">state</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">variable</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">estimate</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">moe</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">41005020101</td>
+<td style="text-align: left;">Census Tract 201.01</td>
+<td style="text-align: left;">Clackamas</td>
+<td style="text-align: left;">Oregon</td>
+<td style="text-align: left;">B25077_001</td>
+<td style="text-align: right;">666700</td>
+<td style="text-align: right;">131453</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">41005020102</td>
+<td style="text-align: left;">Census Tract 201.02</td>
+<td style="text-align: left;">Clackamas</td>
+<td style="text-align: left;">Oregon</td>
+<td style="text-align: left;">B25077_001</td>
+<td style="text-align: right;">909000</td>
+<td style="text-align: right;">130787</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">41005020201</td>
+<td style="text-align: left;">Census Tract 202.01</td>
+<td style="text-align: left;">Clackamas</td>
+<td style="text-align: left;">Oregon</td>
+<td style="text-align: left;">B25077_001</td>
+<td style="text-align: right;">897400</td>
+<td style="text-align: right;">97893</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">41005020202</td>
+<td style="text-align: left;">Census Tract 202.02</td>
+<td style="text-align: left;">Clackamas</td>
+<td style="text-align: left;">Oregon</td>
+<td style="text-align: left;">B25077_001</td>
+<td style="text-align: right;">821200</td>
+<td style="text-align: right;">93103</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">41005020302</td>
+<td style="text-align: left;">Census Tract 203.02</td>
+<td style="text-align: left;">Clackamas</td>
+<td style="text-align: left;">Oregon</td>
+<td style="text-align: left;">B25077_001</td>
+<td style="text-align: right;">565600</td>
+<td style="text-align: right;">32555</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">41005020303</td>
+<td style="text-align: left;">Census Tract 203.03</td>
+<td style="text-align: left;">Clackamas</td>
+<td style="text-align: left;">Oregon</td>
+<td style="text-align: left;">B25077_001</td>
+<td style="text-align: right;">560000</td>
+<td style="text-align: right;">34669</td>
+</tr>
+</tbody>
+</table>
+
+
+</div>
+</div>
+</div>
+<div class="task">
+<p>Aggregate the <code>home_vals_dt</code> data.table with grouping by county and show summary statistics on the “estimate” variable.</p>
+</div>
+<p>Compute min, max, mean, and median by county:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>county_summary_dt <span class="ot">&lt;-</span> home_vals_dt[, .(<span class="at">min =</span> <span class="fu">min</span>(estimate), <span class="at">max =</span> <span class="fu">max</span>(estimate), <span class="at">mean =</span> <span class="fu">round</span>(<span class="fu">mean</span>(estimate),<span class="dv">1</span>), <span class="at">median =</span> stats<span class="sc">::</span><span class="fu">median</span>(estimate)), by <span class="ot">=</span> county]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<table data-quarto-postprocess="true" class="table table-sm table-striped small">
+<caption>Table 4.9: Summary statistics for Census tracts in Portland-area counties</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;" data-quarto-table-cell-role="th">county</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">min</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">max</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">mean</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">median</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Clackamas</td>
+<td style="text-align: right;">62800</td>
+<td style="text-align: right;">909000</td>
+<td style="text-align: right;">449940.7</td>
+<td style="text-align: right;">426700</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Columbia</td>
+<td style="text-align: right;">218100</td>
+<td style="text-align: right;">362200</td>
+<td style="text-align: right;">277590.9</td>
+<td style="text-align: right;">275900</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Marion</td>
+<td style="text-align: right;">48700</td>
+<td style="text-align: right;">483500</td>
+<td style="text-align: right;">270969.2</td>
+<td style="text-align: right;">261200</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Multnomah</td>
+<td style="text-align: right;">192900</td>
+<td style="text-align: right;">1033500</td>
+<td style="text-align: right;">455706.2</td>
+<td style="text-align: right;">425950</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Washington</td>
+<td style="text-align: right;">221900</td>
+<td style="text-align: right;">769700</td>
+<td style="text-align: right;">419618.3</td>
+<td style="text-align: right;">406100</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Yamhill</td>
+<td style="text-align: right;">230000</td>
+<td style="text-align: right;">545500</td>
+<td style="text-align: right;">333815.8</td>
+<td style="text-align: right;">291100</td>
+</tr>
+</tbody>
+</table>
+
+
+</div>
+</div>
+</div>
+<div class="task">
+<p>Show the overall kernel density of the “estimate” variable of <code>home_vals_dt</code>.</p>
+</div>
+<p>Call <code>RplotterPkg::create_density_plot()</code>:</p>
+<div class="cell page-columns page-full">
+<div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a>RplotterPkg<span class="sc">::</span><span class="fu">create_density_plot</span>(</span>
+<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">df =</span> home_vals_dt,</span>
+<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_x =</span> <span class="st">"estimate"</span>,</span>
+<span id="cb37-4"><a href="#cb37-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_title =</span> <span class="st">"Home Value(x 1000)"</span>,</span>
+<span id="cb37-5"><a href="#cb37-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">y_title =</span> <span class="st">"Density"</span>,</span>
+<span id="cb37-6"><a href="#cb37-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_labels =</span> <span class="cf">function</span>(x)<span class="fu">paste0</span>(<span class="st">"$"</span>, <span class="fu">prettyNum</span>(x<span class="sc">/</span><span class="dv">1000</span>,<span class="at">big.mark =</span> <span class="st">","</span>,<span class="at">scientific=</span>F)),</span>
+<span id="cb37-7"><a href="#cb37-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_limits =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1000000</span>),</span>
+<span id="cb37-8"><a href="#cb37-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_major_breaks =</span> <span class="fu">c</span>(<span class="dv">250000</span>, <span class="dv">500000</span>, <span class="dv">750000</span>),</span>
+<span id="cb37-9"><a href="#cb37-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">rot_y_tic_label =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb37-10"><a href="#cb37-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">density_fill =</span> <span class="st">"navyblue"</span>,</span>
+<span id="cb37-11"><a href="#cb37-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">density_alpha =</span> <span class="fl">0.5</span></span>
+<span id="cb37-12"><a href="#cb37-12" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+
+<div class="no-row-height column-margin column-container"><div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="4_exploring_census_visualization_files/figure-html/unnamed-chunk-52-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Figure 4.16: A density plot using all values in the dataset</figcaption>
+</figure>
+</div>
+</div></div></div>
+<div class="task">
+<p>Show the home value density by county.</p>
+</div>
+<div class="cell page-columns page-full">
+<div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>RplotterPkg<span class="sc">::</span><span class="fu">create_density_plot</span>(</span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">df =</span> home_vals_dt[, .(estimate), <span class="at">by =</span> county],</span>
+<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_x =</span> <span class="st">"estimate"</span>,</span>
+<span id="cb38-4"><a href="#cb38-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">aes_fill =</span> <span class="st">"county"</span>,</span>
+<span id="cb38-5"><a href="#cb38-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_title =</span> <span class="st">"Home Value(x 1000)"</span>,</span>
+<span id="cb38-6"><a href="#cb38-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">y_title =</span> <span class="st">"Density"</span>,</span>
+<span id="cb38-7"><a href="#cb38-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_labels =</span> <span class="cf">function</span>(x)<span class="fu">paste0</span>(<span class="st">"$"</span>, <span class="fu">prettyNum</span>(x<span class="sc">/</span><span class="dv">1000</span>,<span class="at">big.mark =</span> <span class="st">","</span>,<span class="at">scientific=</span>F)),</span>
+<span id="cb38-8"><a href="#cb38-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_limits =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1000000</span>),</span>
+<span id="cb38-9"><a href="#cb38-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_major_breaks =</span> <span class="fu">c</span>(<span class="dv">250000</span>, <span class="dv">500000</span>, <span class="dv">750000</span>),</span>
+<span id="cb38-10"><a href="#cb38-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">rot_y_tic_label =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb38-11"><a href="#cb38-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">legend_key_width =</span> <span class="fl">0.8</span></span>
+<span id="cb38-12"><a href="#cb38-12" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+
+<div class="no-row-height column-margin column-container"><div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="4_exploring_census_visualization_files/figure-html/unnamed-chunk-53-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Figure 4.17: A density plot with separate curves for each county</figcaption>
+</figure>
+</div>
+</div></div></div>
+<div class="task">
+<p>Show the home value density by county in multiple charts using <code>RplotterPkg::multi_panel_grid()</code> function.</p>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a>counties <span class="ot">&lt;-</span> <span class="fu">levels</span>(home_vals_dt<span class="sc">$</span>county)</span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a>build_plot <span class="ot">&lt;-</span> <span class="cf">function</span>(id, df, counties){</span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>  county <span class="ot">&lt;-</span> counties[id]</span>
+<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a>  plot_df <span class="ot">&lt;-</span> df[county <span class="sc">==</span> counties[[id]], ]</span>
+<span id="cb39-5"><a href="#cb39-5" aria-hidden="true" tabindex="-1"></a>  aplot <span class="ot">&lt;-</span> RplotterPkg<span class="sc">::</span><span class="fu">create_density_plot</span>(</span>
+<span id="cb39-6"><a href="#cb39-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">df =</span> plot_df,</span>
+<span id="cb39-7"><a href="#cb39-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">aes_x =</span> <span class="st">"estimate"</span>,</span>
+<span id="cb39-8"><a href="#cb39-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> county,</span>
+<span id="cb39-9"><a href="#cb39-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">x_title =</span> <span class="cn">NULL</span>,</span>
+<span id="cb39-10"><a href="#cb39-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">x_labels =</span> <span class="cf">function</span>(x) <span class="fu">paste0</span>(<span class="st">"$"</span>, x <span class="sc">/</span> <span class="dv">1000</span>, <span class="st">"k"</span>),</span>
+<span id="cb39-11"><a href="#cb39-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">x_limits =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1000000</span>),</span>
+<span id="cb39-12"><a href="#cb39-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">x_major_breaks =</span> <span class="fu">c</span>(<span class="dv">250000</span>, <span class="dv">500000</span>, <span class="dv">750000</span>),</span>
+<span id="cb39-13"><a href="#cb39-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">y_limits =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="fl">0.000008</span>),</span>
+<span id="cb39-14"><a href="#cb39-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">y_major_breaks =</span> <span class="fu">seq</span>(<span class="dv">0</span>, <span class="fl">0.000008</span>, <span class="fl">0.000001</span>),</span>
+<span id="cb39-15"><a href="#cb39-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">y_title =</span> <span class="st">"Density"</span>,</span>
+<span id="cb39-16"><a href="#cb39-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">show_minor_grids =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb39-17"><a href="#cb39-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">rot_y_tic_label =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb39-18"><a href="#cb39-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">density_fill =</span> <span class="st">"navyblue"</span>,</span>
+<span id="cb39-19"><a href="#cb39-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">density_alpha =</span> <span class="fl">0.5</span></span>
+<span id="cb39-20"><a href="#cb39-20" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb39-21"><a href="#cb39-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(aplot)</span>
+<span id="cb39-22"><a href="#cb39-22" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb39-23"><a href="#cb39-23" aria-hidden="true" tabindex="-1"></a>plot_lst <span class="ot">&lt;-</span> purrr<span class="sc">::</span><span class="fu">map</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">6</span>,</span>
+<span id="cb39-24"><a href="#cb39-24" aria-hidden="true" tabindex="-1"></a>  build_plot,</span>
+<span id="cb39-25"><a href="#cb39-25" aria-hidden="true" tabindex="-1"></a>  <span class="at">df =</span> home_vals_dt,</span>
+<span id="cb39-26"><a href="#cb39-26" aria-hidden="true" tabindex="-1"></a>  <span class="at">counties =</span> counties</span>
+<span id="cb39-27"><a href="#cb39-27" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb39-28"><a href="#cb39-28" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(plot_lst) <span class="ot">&lt;-</span> counties</span>
+<span id="cb39-29"><a href="#cb39-29" aria-hidden="true" tabindex="-1"></a>layout <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb39-30"><a href="#cb39-30" aria-hidden="true" tabindex="-1"></a>  <span class="at">plots =</span> plot_lst,</span>
+<span id="cb39-31"><a href="#cb39-31" aria-hidden="true" tabindex="-1"></a>  <span class="at">rows =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">2</span>),</span>
+<span id="cb39-32"><a href="#cb39-32" aria-hidden="true" tabindex="-1"></a>  <span class="at">cols =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>)</span>
+<span id="cb39-33"><a href="#cb39-33" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb39-34"><a href="#cb39-34" aria-hidden="true" tabindex="-1"></a>RplotterPkg<span class="sc">::</span><span class="fu">multi_panel_grid</span>(</span>
+<span id="cb39-35"><a href="#cb39-35" aria-hidden="true" tabindex="-1"></a> <span class="at">layout =</span> layout,</span>
+<span id="cb39-36"><a href="#cb39-36" aria-hidden="true" tabindex="-1"></a> <span class="at">title =</span> <span class="st">"Median home values by Census tract, 2015-2019 ACS"</span>,</span>
+<span id="cb39-37"><a href="#cb39-37" aria-hidden="true" tabindex="-1"></a> <span class="at">y_tick_width =</span> <span class="dv">1</span>,</span>
+<span id="cb39-38"><a href="#cb39-38" aria-hidden="true" tabindex="-1"></a> <span class="at">plot_titles =</span> counties</span>
+<span id="cb39-39"><a href="#cb39-39" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="4_exploring_census_visualization_files/figure-html/unnamed-chunk-54-1.png" class="img-fluid figure-img" width="960"></p>
+<figcaption>Figure 4.18: An example faceted density plot</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="advanced-visualization-with-ggplot2-extensions" class="level2 page-columns page-full">
+<h2 class="anchored" data-anchor-id="advanced-visualization-with-ggplot2-extensions">4.7 Advanced visualization with ggplot2 extensions</h2>
+<section id="density-ridges" class="level3">
+<h3 class="anchored" data-anchor-id="density-ridges">4.7.1 Density ridges</h3>
+<div class="task">
+<p>Repeat the above home value density by county data (<code>home_vals_dt</code>) in a “ridge” type of display.</p>
+</div>
+<p>Reshape <code>home_vals_dt</code> to a “wide” form using the “county” variable:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a>home_vals_wide_dt <span class="ot">&lt;-</span> RcensusPkg<span class="sc">::</span><span class="fu">long_to_wide</span>(</span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">dt =</span> home_vals_dt,</span>
+<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">id_v =</span> <span class="st">"tract"</span>,</span>
+<span id="cb40-4"><a href="#cb40-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">parameter_col =</span> <span class="st">"county"</span>,</span>
+<span id="cb40-5"><a href="#cb40-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">value_col =</span> <span class="st">"estimate"</span></span>
+<span id="cb40-6"><a href="#cb40-6" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Call <code>RplotterPkg::create_density_ridge_plot()</code>:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb41"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a>RplotterPkg<span class="sc">::</span><span class="fu">create_density_ridge_plot</span>(</span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">df =</span> home_vals_wide_dt,</span>
+<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">title =</span> <span class="st">"Median home value: 2016-2020 ACS estimate"</span>,</span>
+<span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">variables =</span> <span class="fu">c</span>(<span class="st">" Clackamas"</span>,<span class="st">" Columbia"</span>, <span class="st">" Marion"</span>, <span class="st">" Multnomah"</span>,  <span class="st">" Washington"</span>,<span class="st">" Yamhill"</span>),</span>
+<span id="cb41-5"><a href="#cb41-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_title =</span> <span class="st">"Home Value"</span>,</span>
+<span id="cb41-6"><a href="#cb41-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_limits =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1000000</span>),</span>
+<span id="cb41-7"><a href="#cb41-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_major_breaks =</span> <span class="fu">c</span>(<span class="dv">250000</span>, <span class="dv">500000</span>, <span class="dv">750000</span>),</span>
+<span id="cb41-8"><a href="#cb41-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">density_fill =</span> <span class="st">"blue"</span>,</span>
+<span id="cb41-9"><a href="#cb41-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">x_labels =</span> <span class="cf">function</span>(x)<span class="fu">paste0</span>(<span class="st">"$"</span>, <span class="fu">prettyNum</span>(x<span class="sc">/</span><span class="dv">1000</span>,<span class="at">big.mark =</span> <span class="st">","</span>,<span class="at">scientific=</span>F)),</span>
+<span id="cb41-10"><a href="#cb41-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">density_alpha =</span> <span class="fl">0.5</span></span>
+<span id="cb41-11"><a href="#cb41-11" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="4_exploring_census_visualization_files/figure-html/unnamed-chunk-56-1.png" class="img-fluid figure-img" width="960"></p>
+<figcaption>Figure 4.19: Median home values in Portlan-area counties visualized with RplotterPkg::create_density_ridge_plot</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="ggbeeswarm" class="level3">
+<h3 class="anchored" data-anchor-id="ggbeeswarm">4.7.2 ggbeeswarm</h3>
+<p>Section skipped.</p>
+</section>
+<section id="geofaceted-plots" class="level3">
+<h3 class="anchored" data-anchor-id="geofaceted-plots">4.7.3 Geofaceted plots</h3>
+<p>Section skipped.</p>
+</section>
+<section id="interactive-visualization-with-plotly" class="level3 page-columns page-full">
+<h3 class="anchored" data-anchor-id="interactive-visualization-with-plotly">4.7.4 Interactive visualization with plotly</h3>
+<div class="task">
+<p>Take the ggplot2 object <code>pyramid_bar_plot</code> created above and make it interactive using the plotly package.</p>
+</div>
+<div class="page-columns page-full"><p></p><div class="no-row-height column-margin column-container"><span class="">Using <code>plotly::ggplotly()</code> is great for interactivity but comes with a price. This html article increased substantially with its addition. It works, but we’ve commented it out as you’ll note in the code below. Using Shiny might be a better option for interactive plots</span></div></div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb42"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a><span class="co">#plotly::ggplotly(pyramid_bar_plot)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+
+
+</section>
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const disableStylesheet = (stylesheets) => {
+    for (let i=0; i < stylesheets.length; i++) {
+      const stylesheet = stylesheets[i];
+      stylesheet.rel = 'prefetch';
+    }
+  }
+  const enableStylesheet = (stylesheets) => {
+    for (let i=0; i < stylesheets.length; i++) {
+      const stylesheet = stylesheets[i];
+      stylesheet.rel = 'stylesheet';
+    }
+  }
+  const manageTransitions = (selector, allowTransitions) => {
+    const els = window.document.querySelectorAll(selector);
+    for (let i=0; i < els.length; i++) {
+      const el = els[i];
+      if (allowTransitions) {
+        el.classList.remove('notransition');
+      } else {
+        el.classList.add('notransition');
+      }
+    }
+  }
+  const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+    const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+    const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+    let newTheme = '';
+    if(darkModeDefault) {
+      newTheme = isAlternate ? baseTheme : alternateTheme;
+    } else {
+      newTheme = isAlternate ? alternateTheme : baseTheme;
+    }
+    const changeGiscusTheme = () => {
+      // From: https://github.com/giscus/giscus/issues/336
+      const sendMessage = (message) => {
+        const iframe = document.querySelector('iframe.giscus-frame');
+        if (!iframe) return;
+        iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+      }
+      sendMessage({
+        setConfig: {
+          theme: newTheme
+        }
+      });
+    }
+    const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+    if (isGiscussLoaded) {
+      changeGiscusTheme();
+    }
+  }
+  const toggleColorMode = (alternate) => {
+    // Switch the stylesheets
+    const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+    manageTransitions('#quarto-margin-sidebar .nav-link', false);
+    if (alternate) {
+      enableStylesheet(alternateStylesheets);
+      for (const sheetNode of alternateStylesheets) {
+        if (sheetNode.id === "quarto-bootstrap") {
+          toggleBodyColorMode(sheetNode);
+        }
+      }
+    } else {
+      disableStylesheet(alternateStylesheets);
+      toggleBodyColorPrimary();
+    }
+    manageTransitions('#quarto-margin-sidebar .nav-link', true);
+    // Switch the toggles
+    const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+    for (let i=0; i < toggles.length; i++) {
+      const toggle = toggles[i];
+      if (toggle) {
+        if (alternate) {
+          toggle.classList.add("alternate");     
+        } else {
+          toggle.classList.remove("alternate");
+        }
+      }
+    }
+    // Hack to workaround the fact that safari doesn't
+    // properly recolor the scrollbar when toggling (#1455)
+    if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+      manageTransitions("body", false);
+      window.scrollTo(0, 1);
+      setTimeout(() => {
+        window.scrollTo(0, 0);
+        manageTransitions("body", true);
+      }, 40);  
+    }
+  }
+  const isFileUrl = () => { 
+    return window.location.protocol === 'file:';
+  }
+  const hasAlternateSentinel = () => {  
+    let styleSentinel = getColorSchemeSentinel();
+    if (styleSentinel !== null) {
+      return styleSentinel === "alternate";
+    } else {
+      return false;
+    }
+  }
+  const setStyleSentinel = (alternate) => {
+    const value = alternate ? "alternate" : "default";
+    if (!isFileUrl()) {
+      window.localStorage.setItem("quarto-color-scheme", value);
+    } else {
+      localAlternateSentinel = value;
+    }
+  }
+  const getColorSchemeSentinel = () => {
+    if (!isFileUrl()) {
+      const storageValue = window.localStorage.getItem("quarto-color-scheme");
+      return storageValue != null ? storageValue : localAlternateSentinel;
+    } else {
+      return localAlternateSentinel;
+    }
+  }
+  const darkModeDefault = false;
+  let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+  // Dark / light mode switch
+  window.quartoToggleColorScheme = () => {
+    // Read the current dark / light value 
+    let toAlternate = !hasAlternateSentinel();
+    toggleColorMode(toAlternate);
+    setStyleSentinel(toAlternate);
+    toggleGiscusIfUsed(toAlternate, darkModeDefault);
+  };
+  // Ensure there is a toggle, if there isn't float one in the top right
+  if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+    const a = window.document.createElement('a');
+    a.classList.add('top-right');
+    a.classList.add('quarto-color-scheme-toggle');
+    a.href = "";
+    a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+    const i = window.document.createElement("i");
+    i.classList.add('bi');
+    a.appendChild(i);
+    window.document.body.appendChild(a);
+  }
+  // Switch to dark mode if need be
+  if (hasAlternateSentinel()) {
+    toggleColorMode(true);
+  } else {
+    toggleColorMode(false);
+  }
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="./3_wrangling_census_data_with_tidyverse_tools.html" class="pagination-link" aria-label="3 Wrangling Census Data with tidyverse tools">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">3 Wrangling Census Data with tidyverse tools</span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

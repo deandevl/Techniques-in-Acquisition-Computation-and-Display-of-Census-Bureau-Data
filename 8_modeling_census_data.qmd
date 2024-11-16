@@ -1,0 +1,1224 @@
+# 8 Modeling US Census data
+
+::: task
+Load the Required R Packages from CRAN:
+:::
+
+```{r}
+#| warning: false
+#| message: false
+
+library(data.table)
+library(devtools)
+library(sf)
+library(usmap)
+library(magrittr)
+library(kableExtra)
+library(scales)
+library(units)
+library(here)
+library(ggplot2)
+library(patchwork)
+library(segregation)
+library(corrr)
+library(car)
+library(spdep)
+library(spatialreg)
+library(GWmodel)
+
+options(DT.options = list(dom = 't', style = 'bootstrap'))
+```
+
+::: task
+Load the packages 'deandevl/RcensusPkg', 'deandevl/RplotterPkg' and 'deandevl/RspatialPkg'.
+:::
+
+```{r}
+#| warning: false
+#| message: false
+
+devtools::install_github('deandevl/RcensusPkg')
+devtools::install_github('deandevl/RspatialPkg')
+devtools::install_github('deandevl/RplotterPkg')
+```
+
+::: task
+Establish an output directory for all downloaded shapefiles.
+:::
+
+```{r}
+#| message: false
+
+output_dir <- file.path(here::here(), "shapefiles")
+```
+
+## 8.1 Indices of segregation and diversity
+
+> Segregation as addressed here generally refers to the measurement of the extent to which two or more groups live apart from each other; diversity as a companion metric measures neighborhood heterogeneity among groups.
+
+### 8.1.1 Data setup with spatial analysis
+
+::: task
+Get California population tract data by race/ethnicity.
+:::
+
+Get the race/ethnicity data:
+
+```{r}
+ca_fips <- usmap::fips(state = "california")
+ca_race_dt <- RcensusPkg::get_vintage_data(
+  dataset = "acs/acs5",
+  vintage = 2019,
+  vars = c(
+    white = "B03002_003E",
+    black = "B03002_004E",
+    asian = "B03002_006E",
+    hispanic = "B03002_012E"
+  ),
+  regionin = paste0("state:",ca_fips),
+  region = "tract:*"
+)
+```
+
+Get the tract geometries for California and join it with the above California race/ethnicity data:
+
+```{r}
+ca_acs_data_sf <- RcensusPkg::tiger_tracts_sf(
+  state = ca_fips,
+  output_dir = output_dir,
+  vintage = 2019,
+  general = T,
+  datafile = ca_race_dt,
+  datafile_key = "GEOID",
+  sf_info = F
+) %>% 
+  data.table::as.data.table(.) %>% 
+  data.table::setnames(
+    old = c("B03002_003E","B03002_004E","B03002_006E","B03002_012E"),
+    new = c("white","black","asian","hispanic")
+  ) %>% 
+  sf::st_as_sf(.)
+```
+
+Get the urbanized areas of California with populations greater than 750000:
+
+```{r}
+us_urban_areas_dt <- RcensusPkg::get_vintage_data(
+  dataset = "acs/acs1",
+  vintage = 2019,
+  vars = "B01001_001E",
+  regionin = "urban_area"
+) %>% 
+ data.table::setnames(old = "B01001_001E",new = "population") %>% 
+ .[, population := as.numeric(population)] %>% 
+ .[population >= 750000 & grepl(pattern = "CA Urbanized Area (2010)", NAME, fixed = T),] %>%
+ .[, NAME := stringr::str_remove(NAME, stringr::fixed(" Urbanized Area (2010)"))]
+```
+
+Get the geometries for the urbanized areas and join it with the above urban population data:
+
+```{r}
+us_urban_areas_sf <- RcensusPkg::tiger_urban_area_sf(
+  output_dir = output_dir,
+  vintage = 2019,
+  general = T,
+  sf_info = F,
+  datafile = us_urban_areas_dt,
+  datafile_key = "GEOID",
+  sf_key = "GEOID10",
+  check_na = T
+) 
+```
+
+Compute an inner spatial join between the above California population race tracts (*ca_acs_data_sf*) geometries and the California urbanized area geometries (*us_urban_areas_sf*):
+
+```{r}
+ca_urban_data_dt <- ca_acs_data_sf %>% 
+  sf::st_join(us_urban_areas_sf, left = F) %>% 
+  sf::st_drop_geometry() %>% 
+  data.table::as.data.table(.) %>% 
+  data.table::setnames(old = c("GEOID.x","NAME10"),new = c("GEOID","urban_name")) %>% 
+  .[,.(white,black,asian,hispanic,GEOID,urban_name)] %>%   data.table::melt(id.vars = c("GEOID","urban_name"), variable.name = "variable",value.name = "estimate") %>% 
+.[, estimate := as.numeric(estimate)]
+```
+
+```{r}
+#| echo: false
+#| tbl-cap: "Table 8.1: Prepared data for segregation analysis"
+
+kableExtra::kbl(ca_urban_data_dt[1:8])
+```
+
+### 8.1.2 The dissimilarity index
+
+> The dissimilarity index is widely used to assess neighborhood segregation between two groups within a region.
+
+::: task
+Assess neighborhood segregation between non-Hispanic white and Hispanic populations for the San Francisco/Oakland urbanized area.
+:::
+
+```{r}
+white_hispanic_dissimilar <- ca_urban_data_dt %>% 
+  .[variable %in% c("white","hispanic") & urban_name == "San Francisco--Oakland, CA",] %>% 
+  segregation::dissimilarity(
+    group = "variable",
+    unit = "GEOID",
+    weight = "estimate"
+  )
+```
+
+The D index of segregation between non-Hispanic and Hispanic populations in the San Francisco-Oakland area is `r white_hispanic_dissimilar`.
+
+::: task
+Find the dissimilarity index between non-Hispanic and Hispanic populations for all the urban areas.
+:::
+
+```{r}
+custom_fun <- function(dt){
+  dissimilar <- segregation::dissimilarity(
+    data = dt,
+    group = "variable",
+    unit = "GEOID",
+    weight = "estimate"
+  )
+}
+
+white_hispanic_dissimilar_urban_groups_dt <- ca_urban_data_dt %>%
+  .[variable %in% c("white","hispanic"),custom_fun(.SD),by=urban_name] %>% 
+  data.table::setorderv(.,cols = "est", order = -1)
+```
+
+[Los Angeles area is the most segregated of the large urbanized areas in California with respect to non-Hispanic white and Hispanic populations]{.column-margin}
+
+```{r}
+#| echo: false
+#| tbl-cap: "Table 8.2: Dissimilarity indices for Hispanic and non-Hispanic white populations, large California urbanized areas"
+
+kableExtra::kbl(white_hispanic_dissimilar_urban_groups_dt)
+```
+
+### 8.1.3 Multi-group segregation indices
+
+::: task
+Use the `segregation::mutual_within()` function to measure segregation and diversity between multiple groups.
+:::
+
+```{r}
+multiple_diversity_dt <- segregation::mutual_within(
+  data = ca_urban_data_dt,
+  group = "variable",
+  unit = "GEOID",
+  weight = "estimate",
+  within = "urban_name",
+  wide = TRUE
+)
+```
+
+[Los Angeles remains the most segregated urban area, whereas Riverside/San Bernardino is the least segregated]{.column-margin}
+
+```{r}
+#| echo: false
+#| tbl-cap: "Table 8.3: Multi-group segregation results for California urban areas"
+
+kableExtra::kbl(multiple_diversity_dt)
+```
+
+::: task
+Use the `segregation::mutual_local()` function to measure segregation across the tracts in just the Los Angeles urban area and create a choropleth map the measurements.
+:::
+
+Get the segregation measures for Los Angeles:
+
+```{r}
+la_local_seg_dt <- ca_urban_data_dt %>% 
+  .[urban_name == "Los Angeles--Long Beach--Anaheim, CA",] %>% 
+  segregation::mutual_local(
+    group = "variable",
+    unit = "GEOID",
+    weight = "estimate",
+    wide = TRUE
+  )
+```
+
+Join the segregation data with tract geometries:
+
+```{r}
+la_tracts_seg_sf <- RcensusPkg::tiger_tracts_sf(
+  state = ca_fips,
+  output_dir = output_dir,
+  vintage = 2019,
+  general = T,
+  datafile = la_local_seg_dt,
+  datafile_key = "GEOID",
+  transform_crs = 26946,
+  check_na = TRUE,
+  sf_info = FALSE
+)
+```
+
+Create the choropleth map:
+
+```{r}
+#| message: false
+#| column: margin
+#| fig-cap: "Figure 8.1: Map of local multi-group segregation scores in Los Angeles"
+
+RspatialPkg::get_geom_sf(
+  sf = la_tracts_seg_sf,
+  aes_fill = "ls",
+  hide_x_tics = TRUE,
+  hide_y_tics = TRUE,
+  panel_color = "white",
+  panel_border_color = "white"
+) +
+  ggplot2::labs(fill = "Local\nsegregation index") +
+  ggplot2::scale_fill_viridis_c(option = "inferno")
+
+```
+
+### 8.1.4 Visualizing the diversity gradient
+
+This section is skipped
+
+## 8.2 Regression modeling with the US Census data
+
+### 8.2.1 Data setup and exploratory data analysis
+
+::: task
+As an illustrative example, get the predictor variable values by Census tract in the Dallas-Fort Worth metropolitan area.
+:::
+
+Define the Texas counties FIPS and variable acronyms from both the *acs/acs5* and *acs/acs5/profile* datasets:
+
+```{r}
+county_fips <- function(fips){
+  return (substr(fips, 3, 5))
+}
+
+texas_fips <- usmap::fips(state = "Texas")
+collin_fips <- county_fips(usmap::fips(state = "Texas", county = "Collin"))
+dallas_fips <- county_fips(usmap::fips(state = "Texas", county = "Dallas"))
+denton_fips <- county_fips(usmap::fips(state = "Texas", county = "Denton"))
+ellis_fips <- county_fips(usmap::fips(state = "Texas", county = "Ellis"))
+hunt_fips <- county_fips(usmap::fips(state = "Texas", county = "Hunt"))
+kaufman_fips <- county_fips(usmap::fips(state = "Texas", county = "Kaufman"))
+rockwall_fips <- county_fips(usmap::fips(state = "Texas", county = "Rockwall"))
+johnson_fips <- county_fips(usmap::fips(state = "Texas", county = "Johnson"))
+parker_fips <- county_fips(usmap::fips(state = "Texas", county = "Parker"))
+tarrant_fips <- county_fips(usmap::fips(state = "Texas", county = "Tarrant"))
+wise_fips <- county_fips(usmap::fips(state = "Texas", county = "Wise"))
+
+dfw_counties <- c(collin_fips,dallas_fips,denton_fips,ellis_fips,hunt_fips,kaufman_fips,rockwall_fips,johnson_fips,parker_fips,tarrant_fips,wise_fips)
+
+variables_acs5_df <- data.frame(
+  names = c(
+    'median_valueE',
+    'median_valueM',
+    'median_roomsE',
+    'median_roomsM',
+    'total_populationE',
+    'total_populationM',
+    'median_ageE',
+    'median_ageM',
+    'median_year_builtE',
+    'median_year_builtM'
+  ),
+  val = c(
+    "B25077_001E",
+    "B25077_001M",
+    "B25018_001E",
+    "B25018_001M",
+    "B01003_001E",
+    "B01003_001M",
+    "B01002_001E",
+    "B01002_001M",
+    "B25037_001E",
+    "B25037_001M"
+  )
+)
+variables_acs5_profile_df <- data.frame(
+  names = c(
+    'pct_collegeE',
+    'pct_collegeM',
+    'pct_foreign_bornE',
+    'pct_foreign_bornM',
+    'median_incomeE',
+    'median_incomeM',
+    'percent_oohE',
+    'percent_oohM',
+    'pct_whiteE',
+    'pct_whiteM'
+  ),
+  val = c(
+   "DP02_0068PE",
+   "DP02_0068PM",
+   "DP02_0094PE",
+   "DP02_0094PM",
+   "DP03_0062E",
+   "DP03_0062M",
+   "DP04_0046PE",
+   "DP04_0046PM",
+   "DP05_0077PE",
+   "DP05_0077PM"
+  )
+)
+```
+
+Get the *acs/acs5/profile* data and remove negative values:
+
+```{r}
+# Get the data
+dfw_acs5_profile_dt <- RcensusPkg::get_vintage_data(
+  dataset = "acs/acs5/profile",
+  vintage = 2020,
+  vars = variables_acs5_profile_df$val,
+  region = "tract:*",
+  regionin = paste0("state:", texas_fips)
+) %>%
+  .[county %in% dfw_counties, ] %>%
+  .[, DP02_0068PE:GEOID] %>%
+  data.table::setnames(old = variables_acs5_profile_df$val, new = variables_acs5_profile_df$names) %>%
+  .[, .(
+    GEOID,
+    median_incomeE = as.numeric(median_incomeE),
+    median_incomeM = as.numeric(median_incomeM),
+    pct_collegeE = as.numeric(pct_collegeE),
+    pct_collegeM = as.numeric(pct_collegeM),
+    pct_foreign_bornE = as.numeric(pct_foreign_bornE),
+    pct_foreign_bornM = as.numeric(pct_foreign_bornM),
+    pct_whiteE = as.numeric(pct_whiteE),
+    pct_whiteM = as.numeric(pct_whiteM),
+    percent_oohE = as.numeric(percent_oohE),
+    percent_oohM = as.numeric(percent_oohM)
+  )]
+# Reshape dfw_acs5_profile_dt to long form and remove negative values
+long_dt <- data.table::melt(
+  data = dfw_acs5_profile_dt, 
+  id.vars = "GEOID") %>% 
+  .[value >= 0.0, ]
+
+# Reshape long_dt back to wide format assigned to dfw_acs5_profile_dt
+dfw_acs5_profile_dt <- data.table::dcast(
+  data = long_dt,
+  GEOID ~ variable,
+  value.var = 'value'
+)
+```
+
+Get the *acs/acs5* data and remove negative values.
+
+```{r}
+dfw_acs5_dt <- RcensusPkg::get_vintage_data(
+  dataset = "acs/acs5",
+  vintage = 2020,
+  vars = variables_acs5_df$val,
+  region = "tract:*",
+  regionin = paste0("state:", texas_fips)
+) %>%
+  .[county %in% dfw_counties, ] %>%
+  .[, B25077_001E:GEOID] %>%
+  data.table::setnames(old = variables_acs5_df$val, new = variables_acs5_df$names) %>%
+  .[, .(
+    GEOID,
+    median_valueE = as.numeric(median_valueE),
+    median_valueM = as.numeric(median_valueM),
+    median_roomsE = as.numeric(median_roomsE),
+    median_roomsM = as.numeric(median_roomsM),
+    total_populationE = as.numeric(total_populationE),
+    total_populationM = as.numeric(total_populationM),
+    median_ageE = as.numeric(median_ageE),
+    median_ageM = as.numeric(median_ageM),
+    median_year_builtE = as.numeric(median_year_builtE),
+    median_year_builtM = as.numeric(median_year_builtM)
+  )]
+
+# Reshape dfw_acs5_dt to long form and remove negative values
+long_dt <- data.table::melt(
+  data = dfw_acs5_dt, 
+  id.vars = "GEOID") %>% 
+  .[value >= 0.0, ]
+
+# Reshape long_dt back to wide format assigned to dfw_acs5_dt
+dfw_acs5_dt <- data.table::dcast(
+  data = long_dt,
+  GEOID ~ variable,
+  value.var = 'value'
+) 
+```
+
+Join *acs/acs5/profile* with *acs/acs5* keyed to their common GEOID value:
+
+```{r}
+data.table::setkey(dfw_acs5_profile_dt, "GEOID")
+data.table::setkey(dfw_acs5_dt, "GEOID")
+
+dfw_data_dt <- dfw_acs5_profile_dt[dfw_acs5_dt]
+```
+
+Get the Dallas area simple feature tract geometries and join them with the *dfw_data_dt* data frame keyed via their common GEOID:
+
+```{r}
+dfw_data_sf <- RcensusPkg::tiger_tracts_sf(
+  state = texas_fips,
+  output_dir = output_dir,
+  vintage = 2020,
+  general = TRUE, 
+  datafile = dfw_data_dt,
+  datafile_key = "GEOID",
+  check_na = FALSE,
+  sf_info = FALSE
+) %>% 
+  data.table::as.data.table(.) %>% 
+  .[COUNTYFP %in% dfw_counties, ] %>% 
+  .[, .(
+    GEOID,
+    median_valueE,
+    median_valueM,
+    median_roomsE,
+    median_roomsM,
+    total_populationE,
+    total_populationM,
+    median_ageE,
+    median_ageM,
+    median_year_builtE,
+    median_year_builtM,
+    pct_collegeE,
+    pct_collegeM,
+    pct_foreign_bornE,
+    pct_foreign_bornM,
+    median_incomeE,
+    median_incomeM,
+    percent_oohE,
+    percent_oohM,
+    pct_whiteE,
+    pct_whiteM,
+    geometry)] %>% 
+  sf::st_as_sf(.) %>% 
+  sf::st_transform(32138) # NAD83 Texas North Central
+```
+
+```{r}
+#| echo: false
+#| tbl-cap: "Table 8.4: Data acquired from RcensusPkg for regression modeling"
+
+kableExtra::kbl(dfw_data_sf[1:6,])
+```
+
+### 8.2.2 Inspecting the outcome variable with visualization
+
+::: task
+Create a choropleth map of the outcome variable median home value.
+:::
+
+```{r}
+mhv_map <- RspatialPkg::get_geom_sf(
+  sf = dfw_data_sf,
+  aes_fill = "median_valueE",
+  hide_x_tics = T,
+  hide_y_tics = T,
+  panel_color = "white",
+  panel_border_color = "white"
+) +
+  ggplot2::scale_fill_viridis_c(labels = scales::label_dollar()) +
+  ggplot2::labs(fill = "Median home value")
+```
+
+::: task
+Create a histogram of the outcome variable median home value.
+:::
+
+```{r}
+mhv_histogram <- RplotterPkg::create_histogram_plot(
+  df = dfw_data_sf,
+  aes_x = "median_valueE",
+  bins = 100,
+  bar_fill = "navy",
+  bar_color = "navy",
+  bar_alpha = 0.5,
+  x_title = "Median home value",
+  y_title = "Count",
+  rot_y_tic_label = TRUE,
+  panel_border_color = "white"
+) 
+```
+
+```{r}
+#| warning: false
+#| fig-width: 12
+#| fig-height: 8
+#| fig-cap: "Figure 8.3: Median home value charts"
+
+mhv_map + mhv_histogram
+```
+
+::: task
+Log-transform the outcome variable to make its distribution closer to normal.
+:::
+
+```{r}
+#| warning: false
+#| message: false
+#| fig-width: 12
+#| fig-height: 8
+#| fig-cap: "Figure 8.4: Logged median home value charts"
+
+dfw_data_sf <- dfw_data_sf %>% 
+  data.table::as.data.table(.) %>% 
+  .[, median_valueE_log := log(median_valueE)] %>% 
+  sf::st_as_sf(.)
+
+mhv_map_log <- RspatialPkg::get_geom_sf(
+  sf = dfw_data_sf,
+  aes_fill = "median_valueE_log",
+  hide_x_tics = T,
+  hide_y_tics = T,
+  panel_color = "white",
+  panel_border_color = "white"
+) +
+  ggplot2::scale_fill_viridis_c() +
+  ggplot2::labs(fill = "Median home value")
+
+mhv_histogram_log <- RplotterPkg::create_histogram_plot(
+  df = dfw_data_sf,
+  aes_x = "median_valueE_log",
+  bins = 100,
+  bar_fill = "navy",
+  bar_color = "navy",
+  bar_alpha = 0.5,
+  x_title = "Median home value",
+  y_title = "Count",
+  rot_y_tic_label = TRUE,
+  panel_border_color = "white"
+) 
+
+mhv_map_log + mhv_histogram_log
+```
+
+### 8.2.3 "Feature engineering"
+
+::: task
+Add two new variables to *dfw_data_sf*: **pop_density** and **median_structure_age**.
+:::
+
+```{r}
+E_cols <- !endsWith(colnames(dfw_data_sf), "M")
+area <- sf::st_area(dfw_data_sf)
+
+dfw_data_for_model_sf <- data.table::as.data.table(dfw_data_sf) %>%
+  .[, E_cols, with=FALSE] %>%
+  .[, area := area] %>%
+  .[, `:=`(pop_density = as.numeric(units::set_units(total_populationE / area, "1/km2")),
+           median_structure_age = 2018 - median_year_builtE)] %>%
+  data.table::setnames(., old = colnames(.), new = stringr::str_remove(colnames(.), "E")) %>%
+  na.omit(.) %>%
+  sf::st_as_sf(.)
+```
+
+```{r}
+#| echo: false
+#| tbl-cap: "Table 8.5: Engineered predictors for regression modeling"
+
+kableExtra::kbl(dfw_data_for_model_sf[1:6,])
+```
+
+### 8.2.4 A first regression model
+
+```{r}
+formula_1 <- "median_value_log ~ median_rooms + median_income + pct_college + pct_foreign_born + pct_white + median_age + median_structure_age + percent_ooh + pop_density + total_population"
+
+model_1 <- lm(formula = formula_1, data = dfw_data_for_model_sf)
+summary(model_1)
+```
+
+::: task
+Produce a correlation matrix among the predictors to inspect collinearity.
+:::
+
+[It appears that the predictors are correlated with one another to some degree]{.column-margin}
+
+```{r}
+#| message: false
+#| fig-cap: "Figure 8.5a: Correlations between model predictors"
+
+predictors_1_v <- c('median_rooms','median_income','pct_college','pct_foreign_born','pct_white','median_age','median_structure_age','percent_ooh','pop_density','total_population')
+
+dfw_estimates_dt <- dfw_data_for_model_sf %>% 
+  data.table::as.data.table(.) %>% 
+  .[, ..predictors_1_v]
+
+correlations_df <- corrr::correlate(dfw_estimates_dt, method = "pearson", quiet = TRUE)
+
+ggplot2::autoplot(correlations_df)
+```
+
+::: task
+Investigate the collinearity further by calculating the *variance inflation factor* (VIF).
+:::
+
+> A VIF value of 1 indicates no collinearity; VIF values above 5 suggest a level of collinearity that has a problematic influence on model interpretation.
+
+[The predictor *median_income* has a VIF over 6 and suggest removing it from the model]{.column-margin}
+
+```{r}
+#| echo: true
+#| tbl-cap: "VIF values among the first model predictors"
+
+VIF <- car::vif(model_1)
+vif_df <- as.data.frame(VIF)
+
+kableExtra::kbl(vif_df)
+
+```
+
+::: task
+Re-run the model with *median_income* removed.
+:::
+
+[Note that the effect of *median_rooms* on median home value is positive and statistically significant.]{.column-margin}
+
+```{r}
+formula_2 <- "median_value_log ~ median_rooms + pct_college + pct_foreign_born + pct_white + median_age + median_structure_age + percent_ooh + pop_density + total_population"
+
+model_2 <- lm(formula = formula_2, data = dfw_data_for_model_sf)
+summary(model_2)
+```
+
+::: task
+Compute the VIF for the second model.
+:::
+
+[With the removal of *median_income* from the model, all of the VIF values are now below 5.]{.column-margin}
+
+```{r}
+#| echo: true
+#| tbl-cap: "VIF values among the second model predictors"
+
+VIF <- car::vif(model_2)
+vif_df <- as.data.frame(VIF)
+
+kableExtra::kbl(vif_df)
+```
+
+### 8.2.5 Dimension reduction with principal components analysis
+
+::: task
+Calculate a principal components analysis using *dfw_estimates_dt* as the predictor data.
+:::
+
+```{r}
+pca_lst <- prcomp(
+  formula = ~.,
+  data = dfw_estimates_dt,
+  scale. = TRUE,
+  center = TRUE
+)
+summary(pca_lst)
+```
+
+::: task
+Show the *loading* values for the predictors under each of the first 5 out of 10 components.
+:::
+
+```{r}
+pca_dt <- pca_lst$rotation %>% 
+  data.table::as.data.table(.) %>% 
+  cbind(predictors_1_v, .) %>% 
+  data.table::setnames(old = "predictors_1_v", new = "predictor") %>% 
+  .[, predictor := as.factor(predictor)]
+```
+
+```{r}
+#| echo: false
+#| tbl-cap: "Table 8.6: PCA variable loadings"
+
+kableExtra::kbl(pca_dt[,1:6])
+```
+
+```{r}
+#| warning: false
+#| fig-cap: "Figure 8.6: Loadings for first five principal components"
+#| fig-width: 12
+#| fig-height: 8
+
+build_plot <- function(id, df, pca_v){
+  a_plot <- RplotterPkg::create_bar_plot(
+    df = df,
+    aes_x = "predictor",
+    aes_y = pca_v[[id]],
+    bar_fill = "darkgreen",
+    bar_alpha = 0.5,
+    y_limits = c(-1.0, 1.0),
+    y_major_breaks = c(-1.0, -0.5, 0.0, 0.5, 1.0),
+    do_coord_flip = T,
+    rot_y_tic_label = T,
+    panel_border_color = "white"
+  )
+  return(a_plot)
+}
+
+pca_v <- c('PC1','PC2','PC3','PC4','PC5')
+
+plot_lst <- purrr::map(1:5,
+  build_plot,
+  df = pca_dt,
+  pca_v = pca_v
+)
+
+layout <- list(
+  plots = plot_lst,
+  rows = c(1, 1, 1, 1, 1),
+  cols = c(1, 2, 3, 4, 5)
+)
+
+RplotterPkg::multi_panel_grid(
+  layout = layout,
+  cell_width = 4,
+  cell_height = 14,
+  plot_titles = pca_v
+)
+
+```
+
+::: task
+Attach the principal components to the original data *dfw_estimates_dt* with `predict()` to produce a matrix of 10 principal component values for each tract observation.
+:::
+
+```{r}
+components_m <- predict(pca_lst, dfw_estimates_dt)
+```
+
+::: task
+Show the choropleth map of tract values for principal component **PC1**.
+:::
+
+```{r}
+#| message: false
+#| fig-cap: "Figure 8.7: Map of principal component 1"
+#| column: margin
+
+dfw_pca_sf <- dfw_data_for_model_sf %>% 
+  data.table::as.data.table(.) %>% 
+  cbind(components_m) %>% 
+  sf::st_as_sf(.)
+
+RspatialPkg::get_geom_sf(
+  sf = dfw_pca_sf,
+  aes_fill = "PC1",
+  hide_x_tics = T,
+  hide_y_tics = T,
+  panel_color = "white",
+  panel_border_color = "white"
+) +
+  ggplot2::scale_fill_viridis_c()
+```
+
+> The brighter yellow areas, which have higher values for PC1, are located in communities like east Fort Worth, east Arlington, Grand Prairie, and south Dallas. Generally speaking, these are low-to-middle income areas with larger nonwhite populations. The locations with the lowest values for PC1 are Southlake (northeast of Fort Worth) and Highland Park (north of downtown Dallas); these communities are segregated, predominantly non-Hispanic white, and are among the wealthiest neighborhoods in the entire United States.
+
+::: task
+Use the first six components as predictors of the outcome variable, median home value.
+:::
+
+```{r}
+pca_formula <- paste0("median_value_log ~ ", paste0('PC', 1:6, collapse = ' + '))
+pca_model <- lm(formula = pca_formula, data = dfw_pca_sf)
+summary(pca_model)
+```
+
+> One possible disadvantage of principal components regression is the interpretation of the results as the different variables which are comprehensible on their own are now spread across the components.
+
+## 8.3 Spatial regression
+
+::: task
+Chart the distribution of the model_2 residuals to check for normality.
+:::
+
+```{r}
+#| column: margin
+#| fig-cap: "Figure 8.8: Distribution of model residuals with RplotterPkg::create_histogram_plot"
+
+dfw_data_for_model_sf$residuals <- residuals(model_2)
+
+RplotterPkg::create_histogram_plot(
+  df = dfw_data_for_model_sf,
+  aes_x = "residuals",
+  bins = 100,
+  bar_fill = "navy",
+  bar_color = "navy",
+  bar_alpha = 0.5,
+  x_title = "Residuals",
+  y_title = "Count",
+  rot_y_tic_label = TRUE,
+  panel_border_color = "white"
+)
+```
+
+::: task
+Use the Moran I test to evaluate the correlation of tract residuals with their neighbors.
+:::
+
+[The Moran's *I* statistic of 0.21 is modest and positive but is statistically significant]{.column-margin}
+
+```{r}
+# Compute the tract weights
+weights_lst <- dfw_data_for_model_sf %>% 
+  spdep::poly2nb() %>% 
+  spdep::nb2listw()
+
+spdep::moran.test(
+  x = dfw_data_for_model_sf$residuals,
+  listw = weights_lst
+)
+```
+
+::: task
+Show a scatterplot of the residual value vs. the average residual for the neighbors of each tract.
+:::
+
+[Plot illustrates the positive spatial autocorrelation in the residuals, suggesting that the assumption of independence in the model error term is violated]{.column-margin}
+
+```{r}
+#| message: false
+#| column: margin
+#| fig-cap: "Figure 8.9: Moran scatterplot of residual spatial autocorrelation"
+
+dfw_data_for_model_sf$lagged_residuals <- spdep::lag.listw(
+  x = weights_lst,
+  var = dfw_data_for_model_sf$residuals
+)
+
+RplotterPkg::create_scatter_plot(
+  df = dfw_data_for_model_sf,
+  aes_x = "residuals",
+  aes_y = "lagged_residuals",
+  pts_size = 2,
+  pts_fill = "gray40",
+  pts_line_alpha = 0.5,
+  panel_border_color = "white",
+  x_title = "residuals",
+  y_title = "lagged_residuals"
+) +
+  geom_smooth(method = "lm", color = "red")
+```
+
+### 8.3.1 Methods for spatial regression
+
+#### 8.3.1.1 Spatial lag models
+
+::: task
+Estimate the spatial lag model for the relationship between logged median home value and its predictors as a spatial lag model using `spatialreg::lagsarlm()` function.
+:::
+
+```{r}
+lag_model <- spatialreg::lagsarlm(
+  formula = formula_2,
+  data = dfw_data_for_model_sf,
+  listw = weights_lst
+)
+summary(lag_model, Nagelkerke = TRUE)
+```
+
+### 8.3.1.2 Spatial error models
+
+::: task
+Compute the alternative spatial error model which includes a spatial lag in the model's error term using `spatialreg::errorsarlm()` function.
+:::
+
+```{r}
+error_model <- spatialreg::errorsarlm(
+  formula = formula_2,
+  data = dfw_data_for_model_sf,
+  listw = weights_lst
+)
+summary(error_model, Nagelkerke = TRUE)
+```
+
+### 8.3.2 Choosing between spatial lag and spatial error methods
+
+::: task
+Re-compute Moran *I* test over the residuals of both models to evaluate their effectiveness in reducing spatial dependence.
+:::
+
+For the `lag_model$residuals` we have:
+
+```{r}
+spdep::moran.test(lag_model$residuals, weights_lst)
+```
+
+For the `error_model$residuals` we have:
+
+```{r}
+spdep::moran.test(error_model$residuals, weights_lst)
+```
+
+[The error model does a better job of eliminating spatial autocorrelation in the residuals entirely]{.column-margin}
+
+::: task
+Use the lm.LMtests() function to apply *Lagrange multiplier tests* for spatial dependence of `model_2`.
+:::
+
+```{r}
+spdep::lm.RStests(
+  model_2,
+  weights_lst,
+  test = c("LMerr","LMlag","RLMerr","RLMlag")
+)
+```
+
+## 8.4 Geographically weighted regression
+
+> Geographically weighted regression (GWR) is a technique designed to evaluate local variations in the results of regression models given a kernel (distance-decay) weighting function.
+
+### 8.4.1 Choosing a bandwidth for GWR
+
+> GWR relies on the concept of a "kernel bandwidth" to compute the local regression model for each location. A kernel bandwidth is based on the kernel type (fixed or adaptive) and a distance-decay function. A fixed kernel uses a cutoff distance to determine which observations will be included in the local model for a given location *i*, whereas an adaptive kernel uses the nearest neighbors to a given location.
+
+::: task
+From the *formula_2* model regression and the *dfw_data_for_model_sf* simple feature data, compute an adaptive kernel bandwidth using the `GWmodel::bw.gwr()` function.
+:::
+
+```{r}
+#| message: false
+#| warning: false
+
+dfw_data_sp <- dfw_data_for_model_sf %>% 
+  sf::as_Spatial()
+
+bw <- GWmodel::bw.gwr(
+  formula = formula_2,
+  data = dfw_data_sp,
+  kernel = "bisquare",
+  adaptive = TRUE
+)
+```
+
+> The function chose 187 as the number of nearest neighbors baseed on cross-validation. This means that for each Census tract, the nearest 187 of the total 1559 Census tracts in the Dallas-Fort Worth region will be used to estimate the local model, with weights calculated using the bisquare distance-decay function...
+
+### 8.4.2 Fitting and evaluating the GWR model
+
+::: task
+Use the `GWmodel::gwr.basic()` together with the bandwidth *bw*, the regression model *formula_2*, and the data *dfw_data_sp* to compute the locally estimated model parameters.
+:::
+
+```{r}
+gw_model <- GWmodel::gwr.basic(
+  formula = formula_2,
+  data = dfw_data_sp,
+  bw = bw,
+  kernel = "bisquare",
+  adaptive = TRUE
+)
+```
+
+::: task
+Retrieve the **SDF** element from *gw_model* and show a choropleth map of the local R-squared values.
+:::
+
+[The map suggests that the model performs very well in Fort Worth, Collin County, and the eastern edge of the the metropolitan area, with the local R-squared values exceeding 0.9.]{.column-margin}
+
+```{r}
+#| message: false
+#| column: margin
+#| fig-cap: "Figure 8.10: Local R-squared values from the GWR model"
+
+gw_model_results_sf <- gw_model$SDF %>% 
+  sf::st_as_sf()
+
+RspatialPkg::get_geom_sf(
+  sf = gw_model_results_sf,
+  aes_fill = "Local_R2",
+  hide_x_tics = T,
+  hide_y_tics = T,
+  panel_color = "white",
+  panel_border_color = "white"
+) +
+  ggplot2::scale_fill_viridis_c()
+```
+
+::: task
+Show a choropleth map of the local coefficent values for the owner-occupied housing predictor(*percent_ooh*).
+:::
+
+[The high negative values(dark purple areas) reflect high median home values with lower ownership (i.e. uptown Dallas with renter-occupied housing). Low positive values(yellow areas) reflect higher median home values and greater percentage of owner-occupied housing.]{.column-margin}
+
+```{r}
+#| message: false
+#| column: margin
+#| fig-cap: "Figure 8.11: Local parameter estimates for percent owner-occupied housing"
+
+RspatialPkg::get_geom_sf(
+  sf = gw_model_results_sf,
+  aes_fill = "percent_ooh",
+  hide_x_tics = T,
+  hide_y_tics = T,
+  panel_color = "white",
+  panel_border_color = "white"
+) +
+  ggplot2::scale_fill_viridis_c()
+```
+
+::: task
+Show a choropleth map of the local coefficent values for the population density predictor(*pop_density*).
+:::
+
+[Bright yellow locations are those where high population densities are associated with higher home values. Dark purples are associated with rural areas/suburbs withsimilarie low densities and higher home values.]{.column-margin}
+
+```{r}
+#| message: false
+#| column: margin
+#| fig-cap: "Figure 8.12: Local parameter estimates for population density"
+
+RspatialPkg::get_geom_sf(
+  sf = gw_model_results_sf,
+  aes_fill = "pop_density",
+  hide_x_tics = T,
+  hide_y_tics = T,
+  panel_color = "white",
+  panel_border_color = "white"
+) +
+  ggplot2::scale_fill_viridis_c()
+```
+
+### 8.4.3 Limitations of GWR
+
+## 8.5 Classification and clustering of ACS data
+
+### 8.5.1 Geodemographic classification
+
+> *Geodemographic classification* refers to the grouping of geographic observations based on similar demographic (or other) characteristics. It is commonly used to generate neighborhood "typologies" that can help explain general similarities and differences among neighborhoods in a broader region.
+
+::: task
+The dataset *dfw_pca_sf* provides 10 principal components and their loading values across 1559 Dallas-Fort Worth area tracts. Take the first 8 principal component loadings and cluster them into 6 groups using the `kmeans()` function.
+:::
+
+```{r}
+set.seed(1983)
+
+dfw_kmeans_lst <- dfw_pca_sf %>% 
+  data.table::as.data.table(.) %>% 
+  .[, PC1:PC8] %>% 
+  kmeans(centers = 6) 
+  
+dfw_kmeans_freq_dt <- table(dfw_kmeans_lst$cluster) %>% 
+  data.table::as.data.table(.) %>% 
+  data.table::setnames(old = c("V1","N"), new = c("Cluster", "Freq"))
+```
+
+[The smallest(Cluster 4) has 83 Census tracts, whereas the largest(Cluster 1) has 456 Census tracts]{.column-matrix}
+
+```{r}
+#| echo: false
+
+kableExtra::kbl(dfw_kmeans_freq_dt, row.names = F)
+```
+
+::: task
+Mutate the cluster id's vector (i.e. `dfw_kmeans_lst$cluster`) to *dfw_pca_sf* and create a choropleth map with the id as the fill aesthetic.
+:::
+
+```{r}
+#| message: false
+#| column: margin
+#| fig-cap: "Figure 8.13: Map of geodemographic clusters in Dallas-Fort Worth"
+
+dfw_clusters_sf <- dfw_pca_sf %>% 
+  data.table::as.data.table(.) %>% 
+  .[, Cluster := as.factor(dfw_kmeans_lst$cluster)] %>% 
+  sf::st_as_sf(.)
+
+RspatialPkg::get_geom_sf(
+  sf = dfw_clusters_sf,
+  aes_fill = "Cluster",
+  hide_x_tics = T,
+  hide_y_tics = T,
+  panel_color = "white",
+  panel_border_color = "white"
+) +
+  ggplot2::scale_fill_brewer(palette = "Set1")
+```
+
+```{r}
+#| message: false
+#| column: margin
+#| fig-cap: "Figure 8.14: Interactive scatterplot of PC1 and PC2 by Cluster"
+
+cluster_plot <- ggplot(
+  data = dfw_clusters_sf,
+  aes(x = PC1, y = PC2, data_id = GOID, color = Cluster)
+) +
+ggiraph::geom_point_interactive(aes(
+    tooltip = paste(
+      "<strong>PC1:</strong>", round(PC1,digits = 2),
+      "<br><strong>PC2:</strong>", round(PC2,digits = 2),
+      "<br><strong>Cluster:</strong>", Cluster
+    )
+)) +
+ggplot2::scale_color_brewer(palette = "Set1") +
+theme_minimal()
+
+ggiraph::girafe(ggobj = cluster_plot)
+
+# cluster_plot  <- ggplot(data = dfw_clusters_sf, aes(x = PC1, y = PC2, color = Cluster)) +
+# #ggplot2::scale_color_brewer(palette = "Set1") +
+# theme_minimal()
+# 
+# cluster_plot <- cluster_plot + geom_point()
+# 
+# plotly::ggplotly(cluster_plot)
+ 
+```
+
+### 8.5.2 Spatial clustering & regionalization
+
+> The geodemographic classification outlined in the previous section offers a useful methodology for identifying similar types of Census tracts in varying parts of a metropolitan region. However, this approach was *aspatial* in that it did not take the geographic properties of the Census tracts into account.
+
+::: task
+From *dfw_pca_sf* simple feature use the **SKATER** algorithm to take into account a spatial, Census tract constraint to the clusters.
+:::
+
+Generate the weights:
+
+```{r}
+input_vars_dt <- dfw_pca_sf %>%
+  data.table::as.data.table(.) %>%
+  .[, PC1:PC8]
+
+skater_nbrs <- spdep::poly2nb(dfw_pca_sf, queen = TRUE)
+costs_lst <- spdep::nbcosts(skater_nbrs, input_vars_dt)
+skater_weights <- spdep::nb2listw(skater_nbrs, costs_lst, style = "B")
+```
+
+Create a minimum spanning tree and call `spdep::skater()` to identify groups of tracts that make up "regions":
+
+```{r}
+mst <- spdep::mstree(skater_weights)
+
+regions <- spdep::skater(
+  mst[, 1:2],
+  input_vars_dt,
+  ncuts = 7,
+  crit = 10
+)
+```
+
+::: task
+Create a choropleth map of the "regions" based on the group identifiers in `regions$groups`.
+:::
+
+```{r}
+#| message: false
+#| column: margin
+#| fig-cap: "Figure 8.15: Map of contiguous regions derived with the SKATER algorithm"
+
+dfw_clusters_sf$Region <- as.factor(regions$groups)
+
+RspatialPkg::get_geom_sf(
+  sf = dfw_clusters_sf,
+  aes_fill = "Region",
+  hide_x_tics = T,
+  hide_y_tics = T,
+  panel_color = "white",
+  panel_border_color = "white"
+) +
+  ggplot2::scale_fill_brewer(palette = "Set1")  
+
+```

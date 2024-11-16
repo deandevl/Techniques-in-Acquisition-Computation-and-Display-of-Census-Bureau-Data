@@ -1,0 +1,1121 @@
+# 6 Mapping Census data with R
+
+::: task
+Load the Required R Packages from CRAN:
+:::
+
+```{r}
+#| warning: false
+#| message: false
+
+library(data.table)
+library(devtools)
+library(sf)
+library(tmap)
+library(leaflet)
+library(mapview)
+library(purrr)
+library(ggplot2)
+library(ggiraph)
+library(htmlwidgets)
+library(patchwork)
+library(scales)
+library(magrittr)
+library(kableExtra)
+library(httr)
+library(here)
+library(RColorBrewer)
+```
+
+::: task
+Load the packages 'deandevl/RcensusPkg', 'deandevl/RplotterPkg' and 'deandevl/RspatialPkg'.
+:::
+
+```{r}
+#| warning: false
+#| message: false
+
+devtools::install_github('deandevl/RcensusPkg')
+devtools::install_github('deandevl/RplotterPkg')
+devtools::install_github('deandevl/RspatialPkg')
+```
+
+::: task
+Establish an output directory for all downloaded shapefiles. Set tmap to interactive mode.
+:::
+
+```{r}
+#| message: false
+
+output_dir <- file.path(here::here(), "shapefiles")
+```
+
+## 6.1 Using geometry in tidycensus
+
+::: task
+Get the tract based median household income ("B19013_001E") for the District of Columbia and join it as a mapping fill aesthetic for each of the geometries of the DC tracts.
+:::
+
+Get the DC median household income by tract for 2020:
+
+```{r}
+dc_fips <- usmap::fips(state = "dc")
+dc_B19013_dt <- RcensusPkg::get_vintage_data(
+  dataset = "acs/acs5",
+  vintage = 2020,
+  vars = "B19013_001E",
+  region = "tract",
+  regionin = paste0("state:", dc_fips)
+) %>%
+  .[B19013_001E != -666666666, ] %>%
+  data.table::setnames(., old = "B19013_001E", new = "median_income") %>% 
+  .[, median_income := as.numeric(median_income)]
+```
+
+Join the data `dc_B19013_dt` with DC's simple feature tract geometries:
+
+```{r}
+dc_tracts_sf <- RcensusPkg::tiger_tracts_sf(
+  output_dir = output_dir,
+  state = dc_fips,
+  datafile = dc_B19013_dt,
+  datafile_key = "GEOID",
+  sf_info = F
+)
+```
+
+Map the median household incomes as the fill aesthetic for the DC tract geometries of the simple feature dataframe `dc_tracts_sf`:
+
+```{r}
+#| message: false
+#| fig-cap: "Figure 6.1: Base R plot of median household income by tract in DC"
+
+RspatialPkg::get_geom_sf(
+  sf = dc_tracts_sf,
+  aes_fill = "median_income",
+  subtitle = "Median Income Across District of Columbia Tracts",
+  legend_key_width = 0.75
+) +
+ggplot2::scale_fill_gradientn(
+  colors = RColorBrewer::brewer.pal(n = 9, name = "Greens"),
+  n.breaks = 8
+)
+```
+
+## 6.2 Map-making with ggplot2 and geom_sf
+
+### 6.2.1 Choropleth mapping
+
+::: task
+Get the median age by state and map it across state geometries.
+:::
+
+Get the median age for each state (i.e. "B01002_001E"):
+
+```{r}
+states_median_age_dt <- RcensusPkg::get_vintage_data(
+  dataset = "acs/acs1",
+  vintage = 2019,
+  vars = "B01002_001E",
+  region = "state"
+) %>%
+  data.table::setnames(., old = "B01002_001E", new = "median_age") %>%
+  .[, median_age := as.numeric(median_age)]
+```
+
+```{r}
+#| fig-cap: "Figure 6.3: US choropleth map with ggplot2 defaults"
+
+RcensusPkg::plot_us_data(
+  df = states_median_age_dt,
+  states_col = "NAME",
+  value_col = "median_age",
+  scale_limits = c(30, 50),
+  scale_breaks = c(30,35,40,45,50),
+  output_dir = output_dir
+)
+```
+
+### 6.2.2 Customizing ggplot2 maps
+
+::: task
+Change the color palette and reverse it so that darker colors represent older areas.
+:::
+
+```{r}
+#| fig-cap: "Figure 6.4: Styled choropleth of US median age with ggplot2"
+
+RcensusPkg::plot_us_data(
+  df = states_median_age_dt,
+  states_col = "NAME",
+  value_col = "median_age",
+  output_dir = output_dir,
+  scale_breaks = seq(30,50,5),
+  scale_colors = RColorBrewer::brewer.pal(8,"RdPu"),
+  scale_limits = c(30,50),
+  scale_labels = c("Age:30","Age:35","Age:40","Age:45","Age:50")
+)
+```
+
+## 6.3 Map-making with tmap
+
+::: task
+Establish some Census data.
+:::
+
+Obtain race and ethnicity population data from the 2020 decennial US Census. Include non-Hispanic white, non-Hispanic Black, Asian, and Hispanic populations for Census tracts in Hennepin County, Minnesota:
+
+```{r}
+minn_henn_fips <- usmap::fips(state = "minnesota", county = "hennepin")
+minn_fips <-  substr(minn_henn_fips, 1, 2)
+henn_cty_fips <- substr(minn_henn_fips, 3, 5)
+vars <- c("P2_001N", "P2_002N", "P2_005N", "P2_006N", "P2_007N", "P2_008N")
+#var_names <- c("summary_value", "Hispanic", "White", "Black", "Native", "Asian")
+
+hennepin_race_dt <- RcensusPkg::get_vintage_data(
+  dataset = "dec/pl",
+  vintage = 2020,
+  vars = vars,
+  region = "tract",
+  regionin = paste0("state:", minn_fips, "+county:", henn_cty_fips)
+) %>% 
+  .[, .(NAME, GEOID, P2_001N, P2_002N, P2_005N, P2_006N, P2_007N, P2_008N)]
+```
+
+Reshape the race/ethnic estimates and summary("P2_001N") to the long form:
+
+```{r}
+hennepin_race_long_dt <- RcensusPkg::wide_to_long(
+  dt = hennepin_race_dt,
+  measure_v = c("P2_002N", "P2_005N", "P2_006N", "P2_007N", "P2_008N"),
+  value_name = "value"
+) %>% 
+  .[, value := as.numeric(value)]
+
+summary_hennepin_race_long_dt <- RcensusPkg::wide_to_long(
+  dt = hennepin_race_dt,
+  measure_v = "P2_001N",
+  value_name = "summary_value"
+) %>% 
+  .[, summary_value := as.numeric(summary_value)] %>% 
+  .[, .(GEOID,summary_value)]
+```
+
+Perform some simple wrangling:
+
+```{r}
+hennepin_race_long_dt <- hennepin_race_long_dt %>% 
+  .[, variable := fcase(
+    variable == "P2_002N","Hispanic",
+    variable == "P2_005N","White",
+    variable == "P2_006N","Black",
+    variable == "P2_007N","Native",
+    variable == "P2_008N","Asian"
+  )] 
+```
+
+Perform a join between `hennepin_race_long_dt` and `summary_hennepin_race_long_dt` and compute the percentages:
+
+```{r}
+data.table::setkeyv(hennepin_race_long_dt,cols = "GEOID")
+data.table::setkeyv(summary_hennepin_race_long_dt, cols = "GEOID")
+hennepin_race_long_dt <- hennepin_race_long_dt[summary_hennepin_race_long_dt] %>% 
+  .[, percent := 100 * value/summary_value]
+```
+
+Get the geometries for the tracts in Hennepin County, Minnesota and join it with `hennepin_race_long_dt`:
+
+```{r}
+hennepin_race_express <- expression(COUNTYFP == henn_cty_fips)
+hennepin_race_sf <- RcensusPkg::tiger_tracts_sf(
+  state = minn_fips,
+  general = T,
+  express = hennepin_race_express,
+  datafile = hennepin_race_long_dt,
+  datafile_key = "GEOID",
+  sf_info = T,
+  output_dir = output_dir
+) %>% 
+  data.table::as.data.table(.) %>% 
+  .[, .(GEOID,NAME,variable,value,summary_value,percent,geometry)] %>% 
+  sf::st_as_sf(.)
+```
+
+```{r}
+#| echo: false
+#| tbl-cap: "Table 6.1: Race and ethnicity in Hennepin County, MN"
+
+hennepin_race_dt <- data.table::as.data.table(hennepin_race_sf) %>% 
+    .[,.(GEOID,NAME,variable,value,summary_value,percent)]
+
+kableExtra::kbl(hennepin_race_dt[1:6,])
+```
+
+### 6.3.1 Choropleth maps with tmap
+
+::: task
+Before using tmap, we will filter the shapefile `hennepin_race_sf` on the black race and produce a static choropleth ggplot2 map of tract percentages in Hennepin, County.
+:::
+
+```{r}
+#| fig-cap: "Figure 6.5a: Tract percentages in Hennepin, County with ggplot2"
+
+hennepin_black_sf <- data.table::as.data.table(hennepin_race_sf) %>%
+  .[variable == "Black", ] %>%
+  sf::st_as_sf(.)
+
+RspatialPkg::get_geom_sf(
+  sf = hennepin_black_sf,
+  aes_fill = "percent",
+  subtitle = "Percentage of Blacks in Hennepin County, MN tracts",
+  legend_key_width = 0.75,
+  scale_breaks = seq(0,100,10),
+  scale_limits = c(0,100),
+  scale_colors = RColorBrewer::brewer.pal(n = 9, name = "Oranges"),
+  hide_x_tics = F,
+  hide_y_tics = F,
+  panel_color = "white"
+) 
+```
+
+::: task
+Use tmap's `tm_shape()` function to visualize the polygon layer of `hennepin_black_sf`.
+:::
+
+Define the bounding box to use for `hennepin_black_sf`:
+
+```{r}
+hennepin_bbox <-  sf::st_bbox(c(xmin = -93.8, xmax = -93.18, ymax = 45.25, ymin = 44.77))
+```
+
+```{r}
+#| fig-cap: "Figure 6.5: Basic polygon plot with tmap"
+
+tmap::tmap_mode("plot")
+tmap::tm_shape(hennepin_black_sf, bbox = hennepin_bbox) +
+  tmap::tm_polygons() 
+
+# tmap::qtm(hennepin_black_sf) +
+#   tmap::tm_grid()
+```
+
+::: task
+Use `tmap` to create an interactive choropleth map by assigning *col = "percent"*.
+:::
+
+```{r}
+#| fig-cap: "Figure 6.6: Basic choropleth with tmap"
+
+tmap::tmap_mode("view")
+tmap::tm_shape(hennepin_black_sf) +
+  tmap::tm_polygons(col = "percent") 
+```
+
+> The default classification scheme used by `tm_fill()` is "pretty", which identifies clean-looking intervals in the data based on the data range. In this example, data classes change every 20 percent. However, this approach will always be sensitive to the distribution of data values.
+
+::: task
+Take a look at the distribution of "percent" with a histogram setting bin breaks at 10 from 0 to 80.
+:::
+
+```{r}
+#| fig-cap: "Figure 6.7: Base R histogram of percent Black by Census tract"
+
+RplotterPkg::create_histogram_plot(
+  df = hennepin_black_sf,
+  aes_x = "percent",
+  title = "Histogram of hennepin_black_sf$percent",
+  x_title = "black_tracts$percent",
+  y_title = "Frequency",
+  bin_breaks = seq(0,80,10),
+  bar_fill = "green",
+)
+```
+
+> As the histogram illustrates, most Census tracts in Hennepin County have Black populations below 20 percent.
+
+::: task
+Use quantiles for classification of "percent" where each bin will contain the same number of tracts.
+:::
+
+```{r}
+#| message: false
+#| fig-cap: "Figure 6.8: tmap choropleth with options"
+
+tmap::tmap_mode("plot")
+tmap::tm_shape(hennepin_black_sf, bbox = hennepin_bbox) +
+  tmap::tm_polygons(
+    col = "percent",
+    style = "quantile",
+    n = 5,
+    palette = "Purples",
+    title = "Percent Black\nby Census tract"
+  ) +
+  tmap::tm_layout(
+    frame = F,
+    legend.outside = T
+  )
+```
+
+> ...quantiles reveals additional neighborhood-level heterogeneity in Hennepin County's Black population in suburban areas. However, it does mask some heterogenity in Minneapolis as the top class now includes values ranging from 21 percent to 88 percent.
+
+::: task
+Use Jenks natural-breaks method, which uses an algorithm to identify meaningful breaks in the data for bin boundaries.
+:::
+
+```{r}
+#| message: false
+#| fig-cap: "Figure 6.9: Styled tmap choropleth"
+
+tmap::tmap_mode("plot")
+tmap::tm_shape(hennepin_black_sf, bbox = hennepin_bbox) +
+  tmap::tm_polygons(
+    col = "percent",
+    style = "jenks",
+    n = 5,
+    palette = "Purples",
+    title = "2020 US Census",
+    legend.hist = TRUE
+  ) +
+  tmap::tm_layout(
+    title = "Percent Black\nby Census tract",
+    legend.outside= T,
+    legend.frame = F,
+    legend.hist.height = .25,
+    legend.hist.width = .8
+  ) 
+```
+
+### 6.3.2 Adding reference elements to a map
+
+::: task
+Add additional tmap based reference elements to the above plot.
+:::
+
+```{r}
+#| message: false
+#| fig-cap: "Figure 6.10: Map of percent Black in Hennepin County with reference elements"
+
+tmap::tmap_mode("plot")
+tmap::tm_shape(hennepin_black_sf, bbox = hennepin_bbox) +
+  tmap::tm_polygons(
+    col = "percent",
+    style = "jenks",
+    n = 5,
+    palette = "Purples",
+    title = "2020 US Census",
+    alpha = 0.7
+  ) +
+  tmap::tm_layout(
+    title = "Percent Black\nby Census tract",
+    frame = F,
+    legend.outside = T
+  ) +
+  tmap::tm_scale_bar(
+    position = c("left","bottom")
+  ) +
+  tmap::tm_compass(
+    position = c("right","top")
+  ) +
+  tmap::tm_credits(
+    "(c) RDean ",
+    bg.color = "white",
+    position = c("RIGHT","BOTTOM")
+  )
+```
+
+### 6.3.3 Choosing a color palette
+
+Section skipped
+
+### 6.3.4 Alternative map types with tmap
+
+#### 6.3.4.1 Graduated symbols
+
+> Graduated symbol maps use shapes referenced to geographi units that are sized relative to a data attribute.
+
+::: task
+Use tmap's `tm_bubbles()` function to create a graduated symbol map of the "value" (i.e. the population across tracts) from `black_tracts_sf`.
+:::
+
+```{r}
+#| message: false
+#| fig-cap: "Figure 6.15: Graduated symbols with tmap"
+
+tmap::tmap_mode("plot")
+tmap::tm_shape(hennepin_black_sf, bbox = hennepin_bbox) +
+  tm_polygons() +
+  tm_bubbles(
+    size = "value",
+    alpha = 0.5,
+    col = "navy",
+    title.size = "Non-Hispanic Black - 2020 US Census"
+  ) +
+  tm_layout(
+    legend.outside = T,
+    legend.outside.position = "bottom"
+  )
+```
+
+#### 6.3.4.2 Faceted maps
+
+::: task
+Complete a faceted map showing the percentages `percent` across all ethnic/race groups ('variable') from `minn_tracts_sf`.
+:::
+
+```{r}
+#| message: false
+#| fig-cap: "Figure 6.16: Faceted map with tmap"
+
+tmap::tmap_mode("plot") +
+tmap::tm_shape(hennepin_race_sf) +
+  tmap::tm_facets(
+    by = "variable",
+    scale.factor = 4
+  ) +
+  tmap::tm_fill(
+    col = "percent",
+    style = "quantile",
+    n = 6,
+    palette = "Blues",
+    title = "Percent (2020 US Census)"
+  ) +
+  tmap::tm_layout(
+    bg.color = "grey",
+    legend.position = c(-0.7, 0.15),
+    panel.label.bg.color = "white"
+  )
+```
+
+#### 6.3.4.3 Dot-density maps
+
+::: task
+Use the `RspatialPkg::dot_density_sf()` function to produce a dot-density map of *hennepin_race_sf*.
+:::
+
+Get the dots for all the races in Hennepin County:
+
+```{r}
+hennepin_dots_sf <- RspatialPkg::dot_density_sf(
+  sf = hennepin_race_sf,
+  dot_col = "value",
+  cases_per_dot = 100,
+  group_col = "variable"
+) %>% 
+  data.table::as.data.table(.) %>% 
+  data.table::setnames(old = "variable", new = "Race") %>% 
+  sf::st_as_sf(.)
+```
+
+Plot both the tract geometries for Hennepin County layered under the POINT geometries from `RspatialPkg::dot_density_sf()`:
+
+```{r}
+#| message: false
+#| fig-cap: "Figure 6.17: Dot-density map with RspatiaPkg::get_geom_sf()" 
+
+RspatialPkg::get_geom_sf(
+  sf = hennepin_race_sf,
+  hide_x_tics = T,
+  hide_y_tics = T,
+  panel_color = "white",
+  sf_fill = "white",
+  panel_border_color = "white",
+  title = "Race/ethnicity, 2020 US Census",
+  subtitle = "1 dot = 100 people"
+) +
+RspatialPkg::get_geom_sf(
+  sf = hennepin_dots_sf,
+  aes_fill = "Race",
+  sf_size = 2,
+  adding = T
+)  
+```
+
+## 6.4 Cartographic workflows with non-Census data
+
+### 6.4.1 National election mapping with tigris(ggplot2) shapes
+
+Data source: https://cookpolitical.com/2020-national-popular-vote-tracker
+
+::: task
+Read data from the Cook Political Report on the 2020 US Presidential election results.
+:::
+
+```{r}
+election_data_path <- file.path(here(), "data", "us_vote_2020.csv")
+vote2020_dt <- data.table::fread(file = election_data_path)
+names(vote2020_dt)
+```
+
+::: task
+Map the election "called" column data across the US state geometries *RcensusPkg::plot_us_data()*.
+:::
+
+Change the name of column "state" to "NAME" and set the "called" column as a factor:
+
+```{r}
+vote2020_dt[, `:=`(called = as.factor(called))] %>%
+  data.table::setnames(old = "called", new = "Party")
+```
+
+```{r}
+#| fig-cap: "Figure 6.18: Map of the 2020 US presidential election results with ggplot2"
+
+RcensusPkg::plot_us_data(
+  df = vote2020_dt,
+  states_col = "state",
+  value_col = "Party",
+  output_dir = output_dir,
+  scale_limits = c("R","D"),
+  scale_breaks = c("R","D"),
+  scale_values = c("red","blue"),
+  sf_color = "white"
+)
+```
+
+### 6.4.2 Understanding and working with ZCTAs
+
+::: Task
+Read in the Internal Revenue Service's Statistics of Income(SOI) data and associate its ZCTAs with ZCTAs for geographies near Boston, MA.
+:::
+
+Read in the SOI data and select variables *N09400* (number of tax returns with self-employment tax) and *N1* (the total number of returns):
+
+```{r}
+self_employment_dt <- data.table::fread("https://www.irs.gov/pub/irs-soi/18zpallnoagi.csv") %>% 
+  data.table::setnames(old = c("N09400", "N1"), new = c("self_emp", "total")) %>% 
+  .[, .(ZIPCODE = as.character(ZIPCODE),  self_emp, total)]
+```
+
+Join *irs_data_dt* dataframe with the Census Bureau's tiger zctas geometries based on "ZIPCODE" values that start with "021", "022", or "024" which are near Boston, MA.
+
+Gather the tiger ztas geometric data:
+
+```{r}
+boston_zctas_sf = RcensusPkg::tiger_zctas_sf(
+  output_dir = output_dir,
+  vintage = 2018,
+  general = TRUE,
+  sf_info = FALSE
+) %>% 
+data.table::as.data.table(.) %>% 
+.[startsWith(GEOID10, "021") | startsWith(GEOID10, "022") | startsWith(GEOID10, "024"),] %>% 
+.[, .(GEOID10 = as.character(as.numeric(GEOID10)), geometry)] %>% 
+sf::st_sf(.)  
+```
+
+Show the mapping of the zcta geometric boundaries using `RspatialPkg::get_geom_sf()`:
+
+```{r}
+#| fig-cap: "Figure 6.19a: ZCTAs in the Boston, MA area"
+
+RspatialPkg::get_geom_sf(
+  sf = boston_zctas_sf,
+  hide_x_tics = T,
+  hide_y_tics = T,
+  panel_color = "white",
+  panel_border_color = "white",
+  sf_fill = "purple",
+  sf_color = "white",
+  title = "ZCTAs in the Boston, MA area, 2018"
+  
+)
+```
+
+Show the mapping of the zcta geometric boundaries using **mapview**:
+
+```{r}
+#| fig-cap: "Figure 6.19: ZCTAs in the Boston, MA area"
+
+mapview::mapview(boston_zctas_sf$geometry)
+```
+
+Join the geometric data with the *self_employment_dt* data.table:
+
+```{r}
+boston_zctas_dt <- boston_zctas_sf %>% 
+  data.table::as.data.table(.)
+
+data.table::setkeyv(boston_zctas_dt,cols = "GEOID10")
+data.table::setkeyv(self_employment_dt, cols = "ZIPCODE")
+
+boston_se_data_sf <- self_employment_dt[boston_zctas_dt] %>% 
+  sf::st_as_sf(.)
+```
+
+Add a new percentage column:
+
+```{r}
+boston_se_data_sf <- boston_se_data_sf %>% 
+  data.table::as.data.table(.) %>% 
+  .[, `:=`(pct_self_emp = (self_emp/total)*100)] %>% 
+  sf::st_sf(.)
+```
+
+```{r}
+#| echo: false
+#| tbl-cap: "Table 6.2: Self-employment percentages by ZCTA in the Boston, MA area"
+
+kableExtra::kbl(boston_se_data_sf[1:6,])
+```
+
+Show the choropleth map of the percentages using `RspatialPkg::get_geom_sf()`:
+
+```{r}
+#| fig-cap: "Figure 6.20a: Simple choropleth of self-employment in Boston using RspatialPkg::get_geom_sf()"
+
+RspatialPkg::get_geom_sf(
+  sf = boston_se_data_sf,
+  aes_fill = "pct_self_emp",
+  hide_x_tics = T,
+  hide_y_tics = T,
+  panel_color = "white",
+  panel_border_color = "white",
+  title = "% self-employed",
+  subtitle = "2018 IRS SOI data"
+)
+```
+
+Show the choropleth map of the percentages using **tmap**:
+
+```{r}
+#| message: false
+#| fig-cap: "Figure 6.20: Simple choropleth of self-employment in Boston"
+
+tmap::tmap_mode("plot")
+tmap::tm_shape(boston_se_data_sf, projection = 26918) +
+  tmap::tm_fill(
+    col = "pct_self_emp",
+    palette = "Purples",
+    title = "% self-employed, \n2018 IRS SOI data"
+  )
+```
+
+Show a graduated symbol map of the self employment values *self_emp*:
+
+```{r}
+#| message: false
+#| fig-cap: "Figure 6.21: Graduated symbol map of self-employment by ZCTA in Boston"
+
+bbox <-  sf::st_bbox(c(xmin = -71.0, xmax = -71.2, ymax = 42.5, ymin = 42.14))
+
+tmap::tmap_mode("plot")
+tmap::tm_shape(boston_se_data_sf, bbox = bbox) +
+  tm_polygons() +
+  tm_bubbles(
+    size = "self_emp",
+    alpha = 0.5,
+    col = "navy",
+    title.size = "Self-employed filers, \n2020 IRS SOI data"
+  ) +
+  tm_layout(
+    legend.outside = F,
+    legend.outside.position = "bottom-left"
+  )
+```
+
+## 6.5 Interactive mapping
+
+### 6.5.1 Interactive mapping with Leaflet
+
+::: task
+Get the percentage of the population aged 25 and up with a bachelor's degree or higher from the "acs/acs5/profile" dataset. Join the data with the geometry of Census tract in Dallas County, Texas.
+:::
+
+Get a description of the variable "DP02_0068P":
+
+```{r}
+DP02_0068P_dt <- RcensusPkg::get_variable_names(
+  dataset = "acs/acs5/profile",
+  vintage = 2020,
+  filter_name_str = "DP02_0068P"
+)
+```
+
+```{r}
+#| echo: false
+#| tbl-cap: "Descriptions of DP02_0068P from acs/acs5/profile, 2020"
+
+kableExtra::kbl(DP02_0068P_dt)
+```
+
+Get the fips numbers for Texas and Dallas:
+
+```{r}
+dallas_tx_fips <- usmap::fips(state = "texas", county = "dallas")
+dallas_cty_fips <- substr(dallas_tx_fips, 3, 5)
+texas_fips <- substr(dallas_tx_fips,1,2)
+```
+
+Get the Census data:
+
+```{r}
+dallas_bachelors_dt <- RcensusPkg::get_vintage_data(
+  dataset = "acs/acs5/profile",
+  vintage = 2020,
+  vars = "DP02_0068PE",
+  region = "tract",
+  regionin = paste0("state:", texas_fips, "+county:", dallas_cty_fips)
+) %>%
+  data.table::setnames(., old = "DP02_0068PE", new = "estimate") %>%
+  .[, estimate := as.numeric(estimate)] %>%
+  .[estimate > 0,]
+```
+
+Get the geographies data and join the Census data percentages *dallas_bachelors_dt*:
+
+```{r}
+express <- expression(COUNTYFP == dallas_cty_fips)
+dallas_bachelors_sf <- RcensusPkg::tiger_tracts_sf(
+  state = texas_fips,
+  general = T,
+  express = express,
+  datafile = dallas_bachelors_dt,
+  datafile_key = "GEOID",
+  output_dir = output_dir,
+  sf_info = F
+) %>% 
+  sf::st_transform(crs = "+proj=longlat +datum=WGS84")
+```
+
+::: task
+Produce a Leaflet map of the *estimate* data using **mapview**.
+:::
+
+[Note that the `mapview()` function includes a parameter *zcol* that takes a column in the dataset as an argument, and visualizes that column with an interactive choropleth map.]{.column-margin}
+
+```{r}
+#| fig-cap: "Figure 6.22: Interactive mapview choropleth"
+
+dallas_bachelors_mv <- mapview::mapView(dallas_bachelors_sf, zcol = "estimate")
+dallas_bachelors_mv@map %>% 
+  leaflet.extras::addFullscreenControl()
+```
+
+::: task
+Produce a Leaflet map of the *estimate* data using **tmap**.
+:::
+
+[To convert all subsequent **tmap** maps to interactive Leaflet maps, add the function `tmap_mode("view")` prior to building the map(s) with the `tm_shape()` function. Also, `tmap_mode("plot")`, is the default mode and produces a non-interactive map.]{.column-margin}
+
+```{r}
+#| fig-cap: "Figure 6.23: Interactive map with tmap in view mode"
+
+tmap::tmap_mode("view")
+tmap::tm_shape(dallas_bachelors_sf) +
+  tmap::tm_fill(
+    col = "estimate",
+    palette = "magma",
+    alpha = 0.5
+  )
+```
+
+::: task
+Map the data using the core **leaflet** package.
+:::
+
+[Note the use of `leaflet::colorNumeric()` for controlling the color palette and using the `leaflet::addProviderTiles()` function for a grey background that won't interfere with the choropleth mapping.]{.column-margin}
+
+```{r}
+#| fig-cap: "Figure 6.24: Interactive leaflet map"
+
+pal <- leaflet::colorNumeric(
+  palette = "magma",
+  domain = dallas_bachelors_sf$estimate
+)
+
+leaflet::leaflet() %>% 
+leaflet::addPolygons(
+  data = dallas_bachelors_sf,
+  color = ~pal(estimate),
+  weight = 0.5,
+  smoothFactor = 0.2,
+  fillOpacity = 0.5,
+  label = ~estimate
+) %>% 
+leaflet::addLegend(
+  position = "bottomright",
+  pal = pal,
+  values = dallas_bachelors_sf$estimate,
+  title = "% with bachelor's<br/>degree"
+)
+```
+
+### 6.5.2 Alternative approaches to interactive mapping
+
+> Like most interactive mapping platforms, Leaflet uses *tiled mapping* in the Web Mercator coordinates reference system. Web Mercator works well for tiled web maps that need to fit within rectangular computer screens, and preserves angles at large scales (zoomed in areas) which is useful for local navigation...it grossly distorts the area of geographic features near the poles, making it inappropriate for small-scale thematic mapping of the world or world regions.
+
+In preparation for small-scale thematic mapping or the world or world regions, get the median house values across the states (B25077_001, acs/acs1, 2019).
+
+```{r}
+housing_values_dt <- RcensusPkg::get_vintage_data(
+  dataset = "acs/acs1",
+  vintage = 2019,
+  vars = "B25077_001E", 
+  region = "state:*"
+) %>%  
+  data.table::setnames(old = "B25077_001E", new = "estimate") %>% 
+  .[, estimate := as.numeric(estimate)] 
+```
+
+Get the US geometries and join the above housing values:
+
+```{r}
+states_sf <- RcensusPkg::tiger_states_sf(
+  general = T,
+  resol = "20m",
+  datafile = housing_values_dt,
+  datafile_key = "GEOID",
+  output_dir = output_dir,
+  sf_info = F
+) %>% 
+  sf::st_transform(crs = "+proj=longlat +datum=WGS84")
+```
+
+::: task
+Use leaflet to map the median home values by state from the 1-year ACS.
+:::
+
+[Note that Alaska's area is grossly distorted relative to the rest of the United States.]{.column-margin}
+
+[Note the use of `leaflet::addMapPane()` to control the layering and pane assignment of background and polygons.]{.column-margin}
+
+```{r}
+#| fig-cap: "Figure 6.25: Interactive US map using Web Mercator"
+
+us_pal <- leaflet::colorNumeric(
+  palette = "plasma",
+  domain = states_sf$estimate
+)
+
+leaflet::leaflet() %>% 
+leaflet::addMapPane("background_map", zIndex = 410) %>% 
+leaflet::addMapPane("polygons", zIndex = 420) %>% 
+leaflet::addPolygons(  
+  data = states_sf,
+  color = ~us_pal(estimate),
+  weight = 0.5,
+  smoothFactor = 0.2,
+  fillOpacity = 0.5,
+  label = ~estimate,
+  options = pathOptions(pane = "polygons")
+) %>% 
+leaflet::addLegend(
+  position = "bottomright",
+  pal = us_pal,
+  values = states_sf$estimate,
+  title = "Median home values"
+)
+```
+
+::: task
+Use the package *RcensusPkg::plot_us_data()* to produce a static map of median house values across US state geometries. Then use the **ggiraph** package to convert the static ggplot2 graphics into interactive plots.
+:::
+
+Define interval breaks/labels for variable "estimate" from `housing_values_dt`:
+
+```{r}
+intervals <- classInt::classIntervals(
+  housing_values_dt$estimate,
+  n = 6,
+  style = "pretty"
+)
+breaks <- intervals$brks
+labels <- c("$100,000","$200,000","$300,000","$400,000","$500,000","$600,000","$700,000")
+```
+
+Show the ggplot2 based choropleth map of US median housing values:
+
+```{r}
+data.table::setnames(housing_values_dt, old = "estimate", new = "Median_House_Values")
+
+housing_plot_lst <- RcensusPkg::plot_us_data(
+  df = housing_values_dt,
+  states_col = "NAME",
+  value_col = "Median_House_Values",
+  output_dir = output_dir,
+  scale_breaks = breaks,
+  scale_limits = c(100000, 700000),
+  scale_labels = labels,
+  scale_colors = RColorBrewer::brewer.pal(8,"YlOrRd"),
+  display_plot = FALSE
+)
+housing_plot_lst$plots$us_states
+```
+
+```{r}
+#| fig-cap: "Figure 6.26: Interactive US map with ggiraph"
+
+states_tooltip_sf <- housing_plot_lst$sf$lower_48 %>% 
+  data.table::as.data.table(.) %>% 
+  .[, `:=`(tooltip = paste(NAME, Median_House_Values, sep = ": "))] %>% 
+  sf::st_sf(.)
+
+gg <- ggplot(states_tooltip_sf, aes(fill = Median_House_Values)) +
+  ggiraph::geom_sf_interactive(aes(tooltip = tooltip, data_id = NAME), size = 0.1) +
+  scale_fill_viridis_c(option = "plasma", labels = scales::label_dollar()) +
+  labs(
+    title = "Median housing value by State, 2019",
+    caption = "Data source: 2019 1-year ACS, US Census Bureau"
+  ) +
+  theme_void()
+
+ggiraph::girafe(ggobj = gg) %>%
+  ggiraph::girafe_options(opts_hover(css = "fill:cyan;"), opts_zoom(max = 10))
+```
+
+## 6.6 Advanced examples
+
+### 6.6.1 Mapping migration flows
+
+This section is currently skipped
+
+### 6.6.2 Linking maps and charts
+
+::: task
+Link a choropleth map of household income for Vermont counties with a ggplot2 bar chart showing the income estimates along with intervals of error.
+:::
+
+Get the county household income estimates and margin of error for Vermont from the Census Bureau for 2020:
+
+```{r}
+vt_fips = usmap::fips(state = "vermont")
+vermont_hh_income_dt = RcensusPkg::get_vintage_data(
+  dataset = "acs/acs5",
+  vintage = 2020,
+  vars = c("B19013_001E","B19013_001M"),
+  region = "county:*",
+  regionin = paste0("state:",vt_fips)
+) %>% 
+  data.table::setnames(old = c("B19013_001E","B19013_001M"), new = c("HouseholdIncome","MOE")) %>% 
+  .[,`:=`(NAME = stringr::str_remove(NAME, "County, Vermont"),      HouseholdIncome = as.numeric(HouseholdIncome), MOE = as.numeric(MOE))]
+```
+
+Get the simple features object(sf) for the Vermont county geographies and join it with the above county income data:
+
+```{r}
+express <- expression(STATEFP == "50")
+vermont_hh_income_geo_sf <- RcensusPkg::tiger_counties_sf(
+  output_dir = output_dir,
+  general = T,
+  sf_info = F,
+  express = express,
+  datafile = vermont_hh_income_dt,
+  datafile_key = "county"
+)
+```
+
+Create the ggplot2 geom_sf object from the above simple features using the ggiraph package:
+
+```{r}
+vermont_hh_income_map_plot <- ggplot2::ggplot(vermont_hh_income_geo_sf, aes(fill = HouseholdIncome)) +
+  ggiraph::geom_sf_interactive(aes(data_id = GEOID)) +
+  scale_fill_distiller(
+    palette = "Greens",
+    direction = 1,
+    guide = "none"
+  ) +
+  theme_void()
+
+ggiraph::girafe(ggobj = vermont_hh_income_map_plot, width_svg = 10, height_svg = 5) 
+```
+
+Create the ggplot2 point chart with error bars from the above simple features:
+
+```{r}
+vermont_hh_income_point_plot <- ggplot2::ggplot(vermont_hh_income_geo_sf, aes(x = HouseholdIncome, y = reorder(NAME, HouseholdIncome),fill = HouseholdIncome)) +
+  geom_errorbar(aes(xmin = HouseholdIncome - MOE, xmax = HouseholdIncome + MOE)) +
+  ggiraph::geom_point_interactive(color = "black", size = 4, shape = 21, aes(data_id = GEOID)) +
+  scale_x_continuous(labels = scales::label_dollar()) +
+  scale_fill_distiller(palette = "Greens", direction = 1, labels = scales::label_dollar()) +
+  labs(
+    title = "Household income by county in Vermont",
+    subtitle = "2016-2020 American Community Survey",
+    y = "",
+    x = "Household Income (bars represent margin of error"
+  )
+
+ggiraph::girafe(ggobj = vermont_hh_income_point_plot, width_svg = 10, height_svg = 5) 
+```
+
+Join both plots:
+
+```{r}
+#| fig-cap: "Figure 6.28: Linked map and chart with ggiraph"
+
+combined_plot <- vermont_hh_income_map_plot + vermont_hh_income_point_plot + patchwork::plot_layout(ncol = 2)
+
+ggiraph::girafe(ggobj = combined_plot, width_svg = 10, height_svg = 5) %>% 
+  ggiraph::girafe_options(opts_hover(css = "fill:cyan;"))
+
+```
+
+### 6.6.3 Reactive mapping with Shiny
+
+See the file *shiny_leaflet_example.R* in this directory for the application.
+
+## 6.7 Working with software outside of R for cartographic projects
+
+### 6.7.1 Exporting maps from R
+
+::: task
+In order to work with maps made with **tmap**, export it using the `tmap_save()` function.
+:::
+
+Assign a previous **tmap** map in this chapter to a variable:
+
+```{r}
+#| message: false
+
+tmap::tmap_mode("plot")
+hennepin_map <- tmap::tm_shape(hennepin_black_sf, bbox = hennepin_bbox) +
+  tmap::tm_polygons(
+    col = "percent",
+    style = "jenks",
+    n = 5,
+    palette = "Purples",
+    title = "2020 US Census",
+    legend.hist = TRUE
+  ) +
+  tmap::tm_layout(
+    title = "Percent Black\nby Census tract",
+    legend.outside= T,
+    legend.frame = F,
+    legend.hist.height = .25,
+    legend.hist.width = .8
+  ) 
+hennepin_map
+```
+
+Save the **tmap**:
+
+```{r}
+tmap::tmap_save(
+  tm = hennepin_map,
+  filename = file.path(here(), "images", "hennepin_black_map.png"),
+  height = 5.5,
+  width = 8,
+  dpi = 300
+)
+```
+
+::: task
+Save an interactive **leaflet** as an HTML document using the `htmlwidgets::saveWidget()` function.
+:::
+
+Save a previous **leaflet** map in this chapter. Uncomment the following lines of code:
+
+```{r}
+#| message: false
+
+# dallas_map <- mapview::mapView(dallas_bachelors_sf, zcol = "estimate")
+# 
+# map_file_path <- file.path(here(), "html", "dallas_mapview_map.html")
+# 
+# htmlwidgets::saveWidget(dallas_map@map, map_file_path, selfcontained = TRUE)
+```
+
+### 6.7.2 Interoperability with other visualization software
+
+> *shapefile* is a common vector spatial data format readable by desktop GIS software and Tableau.
+
+The function `sf::st_write()` provides the means to write any of the special feature objects in this chapter to a *shapefile*.

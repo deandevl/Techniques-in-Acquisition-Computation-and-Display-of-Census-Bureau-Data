@@ -1,0 +1,52 @@
+project:
+  type: website
+execute:
+  freeze: false
+website:
+  reader-mode: true
+  page-navigation: true
+  sidebar:
+    style: floating
+    search: true
+    contents:
+      - index.qmd
+      - 2_intro_to_tidyverse.qmd
+      - 3_wrangling_census_data_with_tidyverse_tools.qmd
+      - 4_exploring_census_visualization.qmd
+      - 5_census_geographic_data.qmd
+      - 6_mapping_census_data_with_R.qmd
+      - 7_spatial_analysis_with_census.qmd
+      - 8_modeling_census_data.qmd
+format:
+  html:
+    fontsize: 1.4rem
+    grid:
+      sidebar-width: 250px
+      body-width: 1100px
+      margin-width: 350px
+    theme:
+      light: cosmo
+      dark: darkly
+    toc: true
+    other-links:
+      - text: RcensusPkg
+        href: https://github.com/deandevl/RcensusPkg
+      - text: RspatialPkg
+        href: https://github.com/deandevl/RspatialPkg
+      - text: RplotterPkg
+        href: https://github.com/deandevl/RplotterPkg
+      - text: data.table
+        href: https://cran.r-project.org/web/packages/data.table/index.html
+      - text: deandevl
+        href: https://github.com/deandevl
+    code-links:
+      - text: source
+        icon: github
+        href: "https://github.com/deandevl/Techniques-in-Acquisition-Computation-and-Display-of-Census-Bureau-Data"
+
+editor: visual
+number-sections: false
+date: last-modified
+css: style.css
+
+
